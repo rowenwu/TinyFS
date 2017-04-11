@@ -27,6 +27,24 @@ public class ClientFS {
 	 * "CSCI485"), CreateDir("/Shahram/CSCI485/", "Lecture1")
 	 */
 	public FSReturnVals CreateDir(String src, String dirname) {
+		/*
+		//if src directory does not exist, return SrcDirNotExistent
+		if(ListDir(src)==SrcDirNotExistent){
+			return SrcDirNotExistent;
+		}
+		
+		//if the specified dirname already exists, return DestDirExists
+		if(ListDir(src+dirname) != SrcDirNotExistent){
+			return DestDirExists;
+		}
+	
+		//create the directory
+		Files.createDirectories(Paths.get(src+dirname));
+		
+		//update master namespaces
+		 
+		//update the log
+		 */
 		return null;
 	}
 
@@ -38,6 +56,37 @@ public class ClientFS {
 	 * Example usage: DeleteDir("/Shahram/CSCI485/", "Lecture1")
 	 */
 	public FSReturnVals DeleteDir(String src, String dirname) {
+		/*
+		//if src directory does not exist, return SrcDirNotExistent
+		if(ListDir(src)==SrcDirNotExistent){
+			return SrcDirNotExistent;
+		}
+		
+		//if the dirname exists, return DestDirExists
+		String[] DestDirContents= ListDir(src+dirname);
+		if(DestDirContents != SrcDirNotExistent){
+			//look up which chunkserver is in charge of each chunk in each file in the folder
+			//ask each chunkserver to delete the chunks
+			 
+			//delete all files from the file of namespaces
+		 
+			//delete directory from the file of namespaces
+				 
+			//delete files
+			File file = null;
+			for(int i=0; i<DestDirContents.size(); i++){
+				file = new File(DestDirContents[i]);
+				file.delete();
+			}
+		    
+		    	//delete directory
+		    	file= new File(src+dirname);
+
+			//update the log
+			
+			return DestDirExists;
+		}
+		 */
 		return null;
 	}
 
@@ -50,6 +99,27 @@ public class ClientFS {
 	 * "/Shahram/CSCI485" to "/Shahram/CSCI550"
 	 */
 	public FSReturnVals RenameDir(String src, String NewName) {
+		/*		
+		//if src does not exist, return srcdirnotexistent
+		if(ListDir(src)==SrcDirNotExistent){
+			return SrcDirNotExistent;
+		}
+		
+		//if other directory with newname already exists, return destdirexists
+		if(!ListDir(NewName)==SrcDirnotExistent){
+			return DestDirExists;
+		} 
+
+		//update master namespaces
+	
+		//rename directory
+		File NewDir= new File(NewName);
+		File OldDir = new File(src);
+		OldDir.renameTo(NewDir);
+		
+		//ask master to update the log
+
+		*/
 		return null;
 	}
 
@@ -61,6 +131,24 @@ public class ClientFS {
 	 * Example usage: ListDir("/Shahram/CSCI485")
 	 */
 	public String[] ListDir(String tgt) {
+		/*
+		//get the target folder
+		File Directory = new File(tgt);
+		
+		//if directory doesn't exist
+		if(!Directory.exists()){
+			return SrcDirNotExistent;
+		}
+		
+		//if directory is empty
+		String[] Contents = Directory.list();
+		if(Contents.size()==0){
+			return null;
+		}	
+		
+		//if directory contains files/directories
+		 return Contents;
+		 */
 		return null;
 	}
 
