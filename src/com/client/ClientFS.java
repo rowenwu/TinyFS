@@ -1,5 +1,10 @@
 package com.client;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 public class ClientFS {
 
 	public enum FSReturnVals {
@@ -27,24 +32,29 @@ public class ClientFS {
 	 * "CSCI485"), CreateDir("/Shahram/CSCI485/", "Lecture1")
 	 */
 	public FSReturnVals CreateDir(String src, String dirname) {
-		/*
-		//if src directory does not exist, return SrcDirNotExistent
-		if(ListDir(src)==SrcDirNotExistent){
-			return SrcDirNotExistent;
+		
+		//if src directory does not exist, return SrcDirNotExistent	
+		File SrcDir= new File(src);
+		if(!SrcDir.exists()){
+			return FSReturnVals.SrcDirNotExistent;
 		}
 		
 		//if the specified dirname already exists, return DestDirExists
-		if(ListDir(src+dirname) != SrcDirNotExistent){
-			return DestDirExists;
+		File DirName= new File(src+dirname);
+		if(DirName.exists()){
+			return FSReturnVals.DestDirExists;
 		}
 	
 		//create the directory
-		Files.createDirectories(Paths.get(src+dirname));
+		try {
+			Files.createDirectories(Paths.get(src+dirname));
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.out.println("ERROR: ClintFS failed to create directory");
+		}
 		
-		//update master namespaces
-		 
-		//update the log
-		 */
+		//update master namespaces and update the log
+		
 		return null;
 	}
 
@@ -56,37 +66,32 @@ public class ClientFS {
 	 * Example usage: DeleteDir("/Shahram/CSCI485/", "Lecture1")
 	 */
 	public FSReturnVals DeleteDir(String src, String dirname) {
-		/*
+		
 		//if src directory does not exist, return SrcDirNotExistent
-		if(ListDir(src)==SrcDirNotExistent){
-			return SrcDirNotExistent;
+		File SrcDir=new File(src);
+		if(!SrcDir.exists()){
+			return FSReturnVals.SrcDirNotExistent;
 		}
 		
 		//if the dirname exists, return DestDirExists
-		String[] DestDirContents= ListDir(src+dirname);
-		if(DestDirContents != SrcDirNotExistent){
-			//look up which chunkserver is in charge of each chunk in each file in the folder
-			//ask each chunkserver to delete the chunks
-			 
-			//delete all files from the file of namespaces
-		 
-			//delete directory from the file of namespaces
+		File DestDir=new File(src+dirname);
+		if(DestDir.exists()){
+			//get all files in the directory 
+			String[] DestDirContents= ListDir(src+dirname);
 				 
-			//delete files
-			File file = null;
-			for(int i=0; i<DestDirContents.size(); i++){
-				file = new File(DestDirContents[i]);
-				file.delete();
+			//delete all files in directory
+			for(int i=0; i<DestDirContents.length; i++){
+				DeleteFile(src+dirname, DestDirContents[i]);
 			}
 		    
-		    	//delete directory
-		    	file= new File(src+dirname);
+		    //delete directory
+		    DestDir.delete();
 
-			//update the log
+			//delete directory from the file of namespaces and update the log
 			
-			return DestDirExists;
+			return FSReturnVals.DestDirExists;
 		}
-		 */
+
 		return null;
 	}
 
@@ -99,27 +104,24 @@ public class ClientFS {
 	 * "/Shahram/CSCI485" to "/Shahram/CSCI550"
 	 */
 	public FSReturnVals RenameDir(String src, String NewName) {
-		/*		
+			
 		//if src does not exist, return srcdirnotexistent
-		if(ListDir(src)==SrcDirNotExistent){
-			return SrcDirNotExistent;
+		File SrcDir = new File(src);
+		if(!SrcDir.exists()){
+			return FSReturnVals.SrcDirNotExistent;
 		}
 		
 		//if other directory with newname already exists, return destdirexists
-		if(!ListDir(NewName)==SrcDirnotExistent){
-			return DestDirExists;
+		File NewNameDir = new File(NewName);
+		if(NewNameDir.exists()){
+			return FSReturnVals.DestDirExists;
 		} 
-
-		//update master namespaces
 	
 		//rename directory
-		File NewDir= new File(NewName);
-		File OldDir = new File(src);
-		OldDir.renameTo(NewDir);
+		SrcDir.renameTo(NewNameDir);
 		
-		//ask master to update the log
+		//update master namespaces and update the log
 
-		*/
 		return null;
 	}
 
@@ -131,24 +133,24 @@ public class ClientFS {
 	 * Example usage: ListDir("/Shahram/CSCI485")
 	 */
 	public String[] ListDir(String tgt) {
-		/*
+		
 		//get the target folder
 		File Directory = new File(tgt);
 		
 		//if directory doesn't exist
 		if(!Directory.exists()){
-			return SrcDirNotExistent;
+			return FSReturnVals.SrcDirNotExistent;
 		}
 		
 		//if directory is empty
 		String[] Contents = Directory.list();
-		if(Contents.size()==0){
+		if(Contents.length==0){
 			return null;
 		}	
 		
 		//if directory contains files/directories
-		 return Contents;
-		 */
+		return Contents;
+		 
 		return null;
 	}
 
