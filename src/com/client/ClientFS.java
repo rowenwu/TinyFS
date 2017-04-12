@@ -1,11 +1,18 @@
 package com.client;
 
 import java.io.File;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
 public class ClientFS {
+	
+	//ClientFS constructor
+	Client client;
+	public ClientFS(Client client){
+		this.client=client;
+	}
 
 	public enum FSReturnVals {
 		DirExists, // Returned by CreateDir when directory exists
@@ -31,30 +38,25 @@ public class ClientFS {
 	 * Example usage: CreateDir("/", "Shahram"), CreateDir("/Shahram/",
 	 * "CSCI485"), CreateDir("/Shahram/CSCI485/", "Lecture1")
 	 */
-	public FSReturnVals CreateDir(String src, String dirname) {
+	public FSReturnVals CreateDir(String src, String dirname) {	
+		
+		client.WriteOutput.writeBytes(src);
+		client.WriteOutput.writeBytes(dirname);
+		client.WriteOutput.writeInt(Master.CreateDirCMD);
+		client.WriteOutput.flush();
+		 
+		int result = Client.ReadIntFromInputStream("Client", client.ReadInput);
 		
 		//if src directory does not exist, return SrcDirNotExistent	
-		File SrcDir= new File(src);
-		if(!SrcDir.exists()){
+		if(result == Master.SrcDirNotExistent){
 			return FSReturnVals.SrcDirNotExistent;
 		}
 		
 		//if the specified dirname already exists, return DestDirExists
-		File DirName= new File(src+dirname);
-		if(DirName.exists()){
+		if(result == Master.DestDirExists){
 			return FSReturnVals.DestDirExists;
 		}
-	
-		//create the directory
-		try {
-			Files.createDirectories(Paths.get(src+dirname));
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.out.println("ERROR: ClintFS failed to create directory");
-		}
-		
-		//update master namespaces and update the log
-		
+
 		return null;
 	}
 
@@ -67,28 +69,20 @@ public class ClientFS {
 	 */
 	public FSReturnVals DeleteDir(String src, String dirname) {
 		
+		client.WriteOutput.writeBytes(src);
+		client.WriteOutput.writeBytes(dirname);
+		client.WriteOutput.writeInt(Master.DeleteDirCMD);
+		client.WriteOutput.flush();
+		
+		int result = Client.ReadIntFromInputStream("Client", client.client.ReadInput);
+		
 		//if src directory does not exist, return SrcDirNotExistent
-		File SrcDir=new File(src);
-		if(!SrcDir.exists()){
+		if(result == Master.SrcDirNotExistent){
 			return FSReturnVals.SrcDirNotExistent;
 		}
 		
 		//if the dirname exists, return DestDirExists
-		File DestDir=new File(src+dirname);
-		if(DestDir.exists()){
-			//get all files in the directory 
-			String[] DestDirContents= ListDir(src+dirname);
-				 
-			//delete all files in directory
-			for(int i=0; i<DestDirContents.length; i++){
-				DeleteFile(src+dirname, DestDirContents[i]);
-			}
-		    
-		    //delete directory
-		    DestDir.delete();
-
-			//delete directory from the file of namespaces and update the log
-			
+		if(result == Master.DestDirExists){
 			return FSReturnVals.DestDirExists;
 		}
 
@@ -105,22 +99,22 @@ public class ClientFS {
 	 */
 	public FSReturnVals RenameDir(String src, String NewName) {
 			
+		client.WriteOutput.writeBytes(src);
+		client.WriteOutput.writeBytes(NewName);
+		client.WriteOutput.writeInt(Master.RenameDirCMD);
+		client.WriteOutput.flush();
+		
+		int result = Client.ReadIntFromInputStream("Client", client.ReadInput);
+		
 		//if src does not exist, return srcdirnotexistent
-		File SrcDir = new File(src);
-		if(!SrcDir.exists()){
+		if(result == Master.SrcDirNotExistent){
 			return FSReturnVals.SrcDirNotExistent;
 		}
 		
 		//if other directory with newname already exists, return destdirexists
-		File NewNameDir = new File(NewName);
-		if(NewNameDir.exists()){
+		if(result == Master.DestDirExists){
 			return FSReturnVals.DestDirExists;
 		} 
-	
-		//rename directory
-		SrcDir.renameTo(NewNameDir);
-		
-		//update master namespaces and update the log
 
 		return null;
 	}
@@ -134,22 +128,21 @@ public class ClientFS {
 	 */
 	public String[] ListDir(String tgt) {
 		
-		//get the target folder
-		File Directory = new File(tgt);
+		client.WriteOutput.writeBytes(tgt);
+		client.WriteOutput.writeInt(Master.ListDirCMD);
+		client.WriteOutput.flush();
+		
+		int result = Client.ReadIntFromInputStream("Client", client.ReadInput);
 		
 		//if directory doesn't exist
-		if(!Directory.exists()){
+		if(result == Master.SrcDirNotExistent){
 			return FSReturnVals.SrcDirNotExistent;
 		}
 		
 		//if directory is empty
-		String[] Contents = Directory.list();
-		if(Contents.length==0){
+		if(result == Master.SrcDirIsEmpty){
 			return null;
 		}	
-		
-		//if directory contains files/directories
-		return Contents;
 		 
 		return null;
 	}
