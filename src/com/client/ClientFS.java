@@ -3,19 +3,19 @@ package com.client;
 public class ClientFS {
 
 	public enum FSReturnVals {
-		DirExists, // Returned by CreateDir when directory exists
-		DirNotEmpty, //Returned when a non-empty directory is deleted
-		SrcDirNotExistent, // Returned when source directory does not exist
-		DestDirExists, // Returned when a destination directory exists
-		FileExists, // Returned when a file exists
-		FileDoesNotExist, // Returns when a file does not exist
-		BadHandle, // Returned when the handle for an open file is not valid
-		RecordTooLong, // Returned when a record size is larger than chunk size
-		BadRecID, // The specified RID is not valid, used by DeleteRecord
-		RecDoesNotExist, // The specified record does not exist, used by DeleteRecord
-		NotImplemented, // Specific to CSCI 485 and its unit tests
-		Success, //Returned when a method succeeds
-		Fail //Returned when a method fails
+		DirExists, // Returned by CreateDir when directory exists 0
+		DirNotEmpty, //Returned when a non-empty directory is deleted 1
+		SrcDirNotExistent, // Returned when source directory does not exist 2 
+		DestDirExists, // Returned when a destination directory exists 3
+		FileExists, // Returned when a file exists 4
+		FileDoesNotExist, // Returns when a file does not exist 5
+		BadHandle, // Returned when the handle for an open file is not valid 6 
+		RecordTooLong, // Returned when a record size is larger than chunk size 7 
+		BadRecID, // The specified RID is not valid, used by DeleteRecord 8 
+		RecDoesNotExist, // The specified record does not exist, used by DeleteRecord 9
+		NotImplemented, // Specific to CSCI 485 and its unit tests 10 
+		Success, //Returned when a method succeeds 11
+		Fail //Returned when a method fails 12
 	}
 
 	/**
