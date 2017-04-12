@@ -6,13 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-public class ClientFS {
-	
-	//ClientFS constructor
-	Client client;
-	public ClientFS(Client client){
-		this.client=client;
-	}
+public class ClientFS extends Client{
 
 	public enum FSReturnVals {
 		DirExists, // Returned by CreateDir when directory exists
@@ -40,12 +34,12 @@ public class ClientFS {
 	 */
 	public FSReturnVals CreateDir(String src, String dirname) {	
 		
-		client.WriteOutput.writeBytes(src);
-		client.WriteOutput.writeBytes(dirname);
-		client.WriteOutput.writeInt(Master.CreateDirCMD);
-		client.WriteOutput.flush();
+		WriteOutput.writeBytes(src);
+		WriteOutput.writeBytes(dirname);
+		WriteOutput.writeInt(Master.CreateDirCMD);
+		WriteOutput.flush();
 		 
-		int result = Client.ReadIntFromInputStream("Client", client.ReadInput);
+		int result = Client.ReadIntFromInputStream("Client", ReadInput);
 		
 		//if src directory does not exist, return SrcDirNotExistent	
 		if(result == Master.SrcDirNotExistent){
@@ -69,12 +63,12 @@ public class ClientFS {
 	 */
 	public FSReturnVals DeleteDir(String src, String dirname) {
 		
-		client.WriteOutput.writeBytes(src);
-		client.WriteOutput.writeBytes(dirname);
-		client.WriteOutput.writeInt(Master.DeleteDirCMD);
-		client.WriteOutput.flush();
+		WriteOutput.writeBytes(src);
+		WriteOutput.writeBytes(dirname);
+		WriteOutput.writeInt(Master.DeleteDirCMD);
+		WriteOutput.flush();
 		
-		int result = Client.ReadIntFromInputStream("Client", client.client.ReadInput);
+		int result = Client.ReadIntFromInputStream("Client", ReadInput);
 		
 		//if src directory does not exist, return SrcDirNotExistent
 		if(result == Master.SrcDirNotExistent){
@@ -99,12 +93,12 @@ public class ClientFS {
 	 */
 	public FSReturnVals RenameDir(String src, String NewName) {
 			
-		client.WriteOutput.writeBytes(src);
-		client.WriteOutput.writeBytes(NewName);
-		client.WriteOutput.writeInt(Master.RenameDirCMD);
-		client.WriteOutput.flush();
+		WriteOutput.writeBytes(src);
+		WriteOutput.writeBytes(NewName);
+		WriteOutput.writeInt(Master.RenameDirCMD);
+		WriteOutput.flush();
 		
-		int result = Client.ReadIntFromInputStream("Client", client.ReadInput);
+		int result = Client.ReadIntFromInputStream("Client", ReadInput);
 		
 		//if src does not exist, return srcdirnotexistent
 		if(result == Master.SrcDirNotExistent){
@@ -128,11 +122,11 @@ public class ClientFS {
 	 */
 	public String[] ListDir(String tgt) {
 		
-		client.WriteOutput.writeBytes(tgt);
-		client.WriteOutput.writeInt(Master.ListDirCMD);
-		client.WriteOutput.flush();
+		WriteOutput.writeBytes(tgt);
+		WriteOutput.writeInt(Master.ListDirCMD);
+		WriteOutput.flush();
 		
-		int result = Client.ReadIntFromInputStream("Client", client.ReadInput);
+		int result = Client.ReadIntFromInputStream("Client", ReadInput);
 		
 		//if directory doesn't exist
 		if(result == Master.SrcDirNotExistent){
