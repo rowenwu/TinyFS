@@ -102,8 +102,8 @@ public class ClientFS extends Client{
 	public FSReturnVals RenameDir(String src, String NewName) {
 		try {
 			dos.writeInt(Master.RenameDirCMD);
-			dos.writeBytes(src);
-			dos.writeBytes(NewName);
+			dos.writeUTF(src);
+			dos.writeUTF(NewName);
 			dos.flush();
 			return FSReturnVals.values()[din.readInt()];
 		} catch (IOException e) {

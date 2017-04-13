@@ -221,7 +221,6 @@ public class Master {
 	public int RenameDir(String src, String NewName) {
 		if(!DirExists(sourcePath + src)) return 2;
 		if(DirExists(sourcePath + src + NewName)) return 3;
-
 		//rename directory
 		File NewDir= new File(sourcePath + NewName);
 		File OldDir = new File(sourcePath + src);

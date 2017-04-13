@@ -20,12 +20,13 @@ public class UnitTest1 {
 	static final String TestName = "Unit Test 1: ";
 	
 	public static void main(String[] args) {
-		Master.UnitTestCLeanUp(new File("source/Shahram"));
-		Master.UnitTestCLeanUp(new File("source/Ghandeharizadeh"));
 		test1(new ClientFS());
 	}
 	
 	public static void test1(ClientFS cfs){
+		Master.UnitTestCLeanUp(new File("source/Shahram"));
+		Master.UnitTestCLeanUp(new File("source/Ghandeharizadeh"));
+		
 		System.out.println(TestName + "Create dir /Shahram, /Shahram/1, /Shahram/2, /Shahram/3, ... /Shahram/N and verify them.");
 		String dir1 = "Shahram";
 		FSReturnVals fsrv = cfs.CreateDir("/", dir1);
