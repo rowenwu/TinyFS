@@ -92,8 +92,9 @@ public class ClientFS extends Client{
 
 	/**
 	 * Renames the specified src directory in the specified path to NewName
-	 * Returns SrcDirNotExistent if the src directory does not exist Returns
-	 * DestDirExists if a directory with NewName exists in the specified path
+	 * Returns SrcDirNotExistent if the src directory does not exist - 2
+	 * Returns DestDirExists if a directory with NewName exists in the specified path - 3
+	 * Returns Success if rename succeeds - 11
 	 *
 	 * Example usage: RenameDir("/Shahram/CSCI485", "/Shahram/CSCI550") changes
 	 * "/Shahram/CSCI485" to "/Shahram/CSCI550"
@@ -141,9 +142,10 @@ public class ClientFS extends Client{
 	}
 
 	/**
-	 * Creates the specified filename in the target directory Returns
-	 * SrcDirNotExistent if the target directory does not exist Returns
-	 * Returns success if creation succeeds
+	 * Creates the specified filename in the target directory 
+	 * Returns SrcDirNotExistent if the target directory does not exist - 2
+	 * Returns FileExists if file with name already exists - 4
+	 * Returns success if creation succeeds - 11
 	 *
 	 * Example usage: Createfile("/Shahram/CSCI485/Lecture1/", "Intro.pptx")
 	 */
@@ -152,10 +154,10 @@ public class ClientFS extends Client{
 	}
 
 	/**
-	 * Deletes the specified filename from the tgtdir Returns SrcDirNotExistent
-	 * if the target directory does not exist Returns FileDoesNotExist if the
-	 * specified filename is not-existent
-	 * Returns success if deletion succeeds
+	 * Deletes the specified filename from the tgtdir 
+	 * Returns SrcDirNotExistent if the target directory does not exist - 2
+	 * Returns FileDoesNotExist if the specified filename is not-existent - 5
+	 * Returns success if deletion succeeds - 11
 	 *
 	 * Example usage: DeleteFile("/Shahram/CSCI485/Lecture1/", "Intro.pptx")
 	 */
@@ -165,8 +167,8 @@ public class ClientFS extends Client{
 
 	/**
 	 * Opens the file specified by the FilePath and populates the FileHandle
-	 * Returns FileDoesNotExist if the specified filename by FilePath is
-	 * not-existent
+	 * Returns FileDoesNotExist if the specified filename by FilePath is not-existent - 5
+	 * Returns Success if successfully opened - 11
 	 *
 	 * Example usage: OpenFile("/Shahram/CSCI485/Lecture1/Intro.pptx", FH1)
 	 */
@@ -175,7 +177,9 @@ public class ClientFS extends Client{
 	}
 
 	/**
-	 * Closes the specified file handle Returns BadHandle if ofh is invalid
+	 * Closes the specified file handle 
+	 * Returns BadHandle if ofh is invalid - 6
+	 * Returns Success if successfully closed - 11
 	 *
 	 * Example usage: CloseFile(FH1)
 	 */
