@@ -1,11 +1,13 @@
 package UnitTests3;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 
 import com.client.ClientFS;
 import com.client.ClientFS.FSReturnVals;
+import com.master.Master;
 
 /**
  * UnitTest1 for Part 3 of TinyFS
@@ -18,6 +20,8 @@ public class UnitTest1 {
 	static final String TestName = "Unit Test 1: ";
 	
 	public static void main(String[] args) {
+		Master.UnitTestCLeanUp(new File("source/Shahram"));
+		Master.UnitTestCLeanUp(new File("source/Ghandeharizadeh"));
 		test1(new ClientFS());
 	}
 	
@@ -42,7 +46,7 @@ public class UnitTest1 {
 		String[] ret1 = cfs.ListDir("/" + dir1);
 		boolean compare1 = compareArrays(gen1, ret1);
 		if(compare1 == false){
-			System.out.println("Unit test 1 result: fail!");
+			System.out.println("Unit test 1 result: failed comparison!");
     		return;
 		}
 		

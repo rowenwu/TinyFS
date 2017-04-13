@@ -1,12 +1,23 @@
 package com.client;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 
 import java.io.IOException;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+
+import com.master.Master;
 
 public class ClientFS extends Client{
+	private Socket clientMasterConn;
+	private int port = 9999;
+	private DataInputStream din;
+	private DataOutputStream dos;
+	private String hostName = "localhost";
 
 	public enum FSReturnVals {
 		DirExists, // Returned by CreateDir when directory exists 0
@@ -23,64 +34,60 @@ public class ClientFS extends Client{
 		Success, //Returned when a method succeeds 11
 		Fail //Returned when a method fails 12
 	}
+	
+	public ClientFS(){
+		try {
+			clientMasterConn = new Socket(hostName, port);
+			dos = new DataOutputStream(clientMasterConn.getOutputStream());
+			din = new DataInputStream(clientMasterConn.getInputStream());
+		} catch (IOException e) {
+			e.printStackTrace();
+		} 
+	}
 
 	/**
-	 * Creates the specified dirname in the src directory Returns
-	 * SrcDirNotExistent if the src directory does not exist Returns
-	 * DestDirExists if the specified dirname exists
-	 *
+	 * Creates the specified dirname in the src directory 
+	 * Returns SrcDirNotExistent if the src directory does not exist - 2
+	 * Returns DirExists if directory already exists - 0
+	 * Returns Success if creation succeeds - 11
+	 * 
 	 * Example usage: CreateDir("/", "Shahram"), CreateDir("/Shahram/",
 	 * "CSCI485"), CreateDir("/Shahram/CSCI485/", "Lecture1")
 	 */
 	public FSReturnVals CreateDir(String src, String dirname) {	
-		
-		WriteOutput.writeBytes(src);
-		WriteOutput.writeBytes(dirname);
-		WriteOutput.writeInt(Master.CreateDirCMD);
-		WriteOutput.flush();
-		 
-		int result = Client.ReadIntFromInputStream("Client", ReadInput);
-		
-		//if src directory does not exist, return SrcDirNotExistent	
-		if(result == Master.SrcDirNotExistent){
-			return FSReturnVals.SrcDirNotExistent;
+		try {
+			dos.writeInt(Master.CreateDirCMD);
+			dos.writeUTF(src);
+			dos.writeUTF(dirname);
+			dos.flush();
+			return FSReturnVals.values()[din.readInt()];
+		} catch (IOException e) {
+			System.out.println("CreateDir failed, IO Exception");
+			e.printStackTrace();
 		}
-		
-		//if the specified dirname already exists, return DestDirExists
-		if(result == Master.DestDirExists){
-			return FSReturnVals.DestDirExists;
-		}
-
-		return null;
+		return FSReturnVals.Fail;
 	}
 
 	/**
-	 * Deletes the specified dirname in the src directory Returns
-	 * SrcDirNotExistent if the src directory does not exist Returns
-	 * DestDirExists if the specified dirname exists
+	 * Deletes the specified dirname in the src directory
+	 * Returns SrcDirNotExistent if the src directory does not exist - 2
+	 * Returns DirNotEmpty if directory is not empty - 1
+	 * Returns Success if deletion succeeds - 11
+	 * Returns Fail if deletion fails - 12
 	 *
 	 * Example usage: DeleteDir("/Shahram/CSCI485/", "Lecture1")
 	 */
 	public FSReturnVals DeleteDir(String src, String dirname) {
-		
-		WriteOutput.writeBytes(src);
-		WriteOutput.writeBytes(dirname);
-		WriteOutput.writeInt(Master.DeleteDirCMD);
-		WriteOutput.flush();
-		
-		int result = Client.ReadIntFromInputStream("Client", ReadInput);
-		
-		//if src directory does not exist, return SrcDirNotExistent
-		if(result == Master.SrcDirNotExistent){
-			return FSReturnVals.SrcDirNotExistent;
+		try {
+			dos.writeInt(Master.DeleteDirCMD);
+			dos.writeUTF(src + dirname);
+			dos.flush();
+			return FSReturnVals.values()[din.readInt()];
+		} catch (IOException e) {
+			System.out.println("DeleteDir failed, IO Exception");
+			e.printStackTrace();
 		}
-		
-		//if the dirname exists, return DestDirExists
-		if(result == Master.DestDirExists){
-			return FSReturnVals.DestDirExists;
-		}
-
-		return null;
+		return FSReturnVals.Fail;
 	}
 
 	/**
@@ -92,59 +99,51 @@ public class ClientFS extends Client{
 	 * "/Shahram/CSCI485" to "/Shahram/CSCI550"
 	 */
 	public FSReturnVals RenameDir(String src, String NewName) {
-			
-		WriteOutput.writeBytes(src);
-		WriteOutput.writeBytes(NewName);
-		WriteOutput.writeInt(Master.RenameDirCMD);
-		WriteOutput.flush();
-		
-		int result = Client.ReadIntFromInputStream("Client", ReadInput);
-		
-		//if src does not exist, return srcdirnotexistent
-		if(result == Master.SrcDirNotExistent){
-			return FSReturnVals.SrcDirNotExistent;
+		try {
+			dos.writeInt(Master.RenameDirCMD);
+			dos.writeBytes(src);
+			dos.writeBytes(NewName);
+			dos.flush();
+			return FSReturnVals.values()[din.readInt()];
+		} catch (IOException e) {
+			System.out.println("RenameDir failed, IO Exception");
+			e.printStackTrace();
 		}
-		
-		//if other directory with newname already exists, return destdirexists
-		if(result == Master.DestDirExists){
-			return FSReturnVals.DestDirExists;
-		} 
-
-		return null;
+		return FSReturnVals.Fail;
 	}
 
 	/**
-	 * Lists the content of the target directory Returns SrcDirNotExistent if
-	 * the target directory does not exist Returns null if the target directory
-	 * is empty
-	 *
+	 * Lists the content of the target directory 
+	 * Returns a String array of the names of contents
+	 * Returns null if the target directory is empty or directory doesn't exist
+	 * 
 	 * Example usage: ListDir("/Shahram/CSCI485")
 	 */
 	public String[] ListDir(String tgt) {
-		
-		WriteOutput.writeBytes(tgt);
-		WriteOutput.writeInt(Master.ListDirCMD);
-		WriteOutput.flush();
-		
-		int result = Client.ReadIntFromInputStream("Client", ReadInput);
-		
-		//if directory doesn't exist
-		if(result == Master.SrcDirNotExistent){
-			return FSReturnVals.SrcDirNotExistent;
+		try {
+			dos.writeInt(Master.ListDirCMD);
+			dos.writeUTF(tgt);
+			dos.flush();
+			int numFiles = din.readInt();
+			if (numFiles == -1)
+				return null;
+			String[] dirs = new String[numFiles];
+			for(int i = 0; i < dirs.length; i++)
+				dirs[i] = din.readUTF();
+			Arrays.sort(dirs);
+			return dirs;
+		} catch (IOException e) {
+			System.out.println("ListDir failed, IO Exception");
+			e.printStackTrace();
 		}
-		
-		//if directory is empty
-		if(result == Master.SrcDirIsEmpty){
-			return null;
-		}	
-		 
+
 		return null;
 	}
 
 	/**
 	 * Creates the specified filename in the target directory Returns
 	 * SrcDirNotExistent if the target directory does not exist Returns
-	 * FileExists if the specified filename exists in the specified directory
+	 * Returns success if creation succeeds
 	 *
 	 * Example usage: Createfile("/Shahram/CSCI485/Lecture1/", "Intro.pptx")
 	 */
@@ -156,6 +155,7 @@ public class ClientFS extends Client{
 	 * Deletes the specified filename from the tgtdir Returns SrcDirNotExistent
 	 * if the target directory does not exist Returns FileDoesNotExist if the
 	 * specified filename is not-existent
+	 * Returns success if deletion succeeds
 	 *
 	 * Example usage: DeleteFile("/Shahram/CSCI485/Lecture1/", "Intro.pptx")
 	 */

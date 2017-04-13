@@ -12,18 +12,26 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.Vector;
+
 
 import com.client.Client;
 import com.client.ClientFS.FSReturnVals;
 
 
+
 public class Master {
-//	private static int port = 9999;
+	private static int port = 9999;
 	Hashtable<String, Vector<String>> filesToChunks;
 	private static long counter; 
 	private static String sourcePath;	
+	
+	public static void main(String[] args){
+		new Master();
+	}
 	
 	//Commands recognized by the Master
 	public static final int CreateDirCMD = 201;
@@ -36,10 +44,11 @@ public class Master {
 	 * Starts listening for client and chunkserver connections 
 	 */
 	public Master(){
+		// ON SETUP, SET COUNTER TO MAX CHUNK VALUE + 1
 		counter = 0;
 		// Set up source folder so that the file directory is independent of other preexisting folders 
 		sourcePath = System.getProperty("user.dir");
-		sourcePath += "\\source\\";
+		sourcePath += "\\source";
 		if (!Files.exists(Paths.get(sourcePath)) || !Files.isDirectory(Paths.get(sourcePath))) {			
 			try {
 				Files.createDirectories(Paths.get(sourcePath));
@@ -48,13 +57,67 @@ public class Master {
 			}
 		}
 		
+		// SINGLE CLIENT CONNECTION - MUST BE MODIFIED LATER FOR MULTITHREADING
+		ServerSocket commChannel = null;
+		try{
+			commChannel = new ServerSocket(port);
+			Socket clientConn = commChannel.accept();
+			DataOutputStream dos = new DataOutputStream(clientConn.getOutputStream());
+			DataInputStream din = new DataInputStream(clientConn.getInputStream());
+			while(true){
+				int CMD = din.readInt();
+//				System.out.println(CMD);
+				switch (CMD){
+				case CreateDirCMD:
+					dos.writeInt(CreateDir(din.readUTF(), din.readUTF()));
+					dos.flush();
+					break;
+				case DeleteDirCMD:
+					dos.writeInt(DeleteDir(din.readUTF()));
+					dos.flush();
+					break;
+				case RenameDirCMD:
+					dos.writeInt(RenameDir(din.readUTF(), din.readUTF()));
+					dos.flush();
+					break;
+				case ListDirCMD:
+					String target = din.readUTF();
+					if(!DirExists(sourcePath + target)){
+						dos.writeInt(-1);
+					}
+					ArrayList<String> files = ListDir(target);
+					// send -1 to client if null
+					if(files == null) 
+						dos.writeInt(-1);
+					else {
+						dos.writeInt(files.size());
+						for(int i = 0; i < files.size(); i++){
+							dos.writeUTF(files.get(i));
+						}
+					}
+					dos.flush();
+					break;
+				default:
+					System.out.println("Error in Master, specified CMD "+CMD+" is not recognized.");
+					break;	
+				}
+			}
+		} catch (IOException e) {
+			System.out.println("Client connection closed");
+//			e.printStackTrace();
+		} finally {
+			try {
+				commChannel.close();
+			} catch (IOException e) {
+				System.out.println("Error closing server socket");
+				e.printStackTrace();
+			}
+		}
 		
-//		int serverPort = 1111; //Set to 0 to cause ServerSocket to allocate the port 
-//		ServerSocket commChannel = null;
 //		
 //		// listen for incoming client connections
 //		try {
-//			commChannel = new ServerSocket(serverPort);
+//			commChannel = new ServerSocket(port);
 //			System.out.println("listening...");
 //			while (true) {
 //				new ConnectionThread(commChannel.accept()).start();
@@ -88,7 +151,6 @@ public class Master {
 //				dos = new DataOutputStream(socket.getOutputStream());
 //				din = new DataInputStream(socket.getInputStream());
 //				
-//				// continuously receive create, read, or write commands from the client
 //				while(true){
 //					int CMD = din.readInt();
 //					switch (CMD){
@@ -109,15 +171,16 @@ public class Master {
 //	}
 	
 	/**
-	 * Creates the specified dirname in the src directory Returns 2
-	 * SrcDirNotExistent if the src directory does not exist Returns 0
-	 * DestDirExists if the specified dirname exists 11
-	 *
+	 * Creates the specified dirname in the src directory 
+	 * Returns SrcDirNotExistent if the src directory does not exist - 2
+	 * Returns DirExists if directory already exists - 0
+	 * Returns Success if creation succeeds - 11
+	 * 
 	 * Example usage: CreateDir("/", "Shahram"), CreateDir("/Shahram/",
 	 * "CSCI485"), CreateDir("/Shahram/CSCI485/", "Lecture1")
 	 */
 	public int CreateDir(String src, String dirname) throws IOException {
-		if(!DirExists(src)) return 2;
+		if(!DirExists(sourcePath + src)) return 2;
 		if(DirExists(sourcePath + src + dirname)) return 0;
 	
 		//create the directory, return 11 - Success
@@ -126,99 +189,80 @@ public class Master {
 	}
 
 	/**
-	 * Deletes the specified dirname in the src directory Returns 2
-	 * SrcDirNotExistent if the src directory does not exist Returns 0
-	 * DestDirExists if the specified dirname exists Returns 3
+	 * Deletes the specified dirname in the src directory
+	 * Returns SrcDirNotExistent if the src directory does not exist - 2
+	 * Returns DirNotEmpty if directory is not empty - 1
+	 * Returns Success if deletion succeeds - 11
+	 * Returns Fail if deletion fails - 12
 	 *
 	 * Example usage: DeleteDir("/Shahram/CSCI485/", "Lecture1")
 	 */
-	public int DeleteDir(String src, String dirname) {
-		if(!DirExists(src)) return 2;
-		if(!DirExists(sourcePath + src + dirname)) return 0;
+	public int DeleteDir(String dirname) {
+		if(!DirExists(sourcePath + dirname)) return 2;
 		
-		//look up which chunkserver is in charge of each chunk in each file in the folder
-		//ask each chunkserver to delete the chunks
+		// check if it's empty
+		File dir = new File(sourcePath + dirname);
+		String[] files = dir.list();
+		if(files.length != 0) return 1;
 				 
-		//delete files
-		if(!DeleteDirectory(new File(sourcePath + src + dirname))) 
-			System.out.println("Error deleting directory");
-		
+		dir.delete();
 		return 3;
 	}
 
 	/**
 	 * Renames the specified src directory in the specified path to NewName
-	 * Returns SrcDirNotExistent if the src directory does not exist Returns
-	 * DestDirExists if a directory with NewName exists in the specified path
+	 * Returns SrcDirNotExistent if the src directory does not exist - 2
+	 * Returns DestDirExists if a directory with NewName exists in the specified path - 3
+	 * Returns Success if rename succeeds - 11
 	 *
 	 * Example usage: RenameDir("/Shahram/CSCI485", "/Shahram/CSCI550") changes
 	 * "/Shahram/CSCI485" to "/Shahram/CSCI550"
 	 */
-	public FSReturnVals RenameDir(String src, String NewName) {
-		/*		
-		//if src does not exist, return srcdirnotexistent
-		if(ListDir(src)==SrcDirNotExistent){
-			return SrcDirNotExistent;
-		}
-		
-		//if other directory with newname already exists, return destdirexists
-		if(!ListDir(NewName)==SrcDirnotExistent){
-			return DestDirExists;
-		} 
+	public int RenameDir(String src, String NewName) {
+		if(!DirExists(sourcePath + src)) return 2;
+		if(DirExists(sourcePath + src + NewName)) return 3;
 
-		//update master namespaces
-	
 		//rename directory
-		File NewDir= new File(NewName);
-		File OldDir = new File(src);
-		OldDir.renameTo(NewDir);
-		
-		//ask master to update the log
+		File NewDir= new File(sourcePath + NewName);
+		File OldDir = new File(sourcePath + src);
+		OldDir.renameTo(NewDir);		
 
-		*/
-		return null;
+		return 11;
 	}
 
 	/**
-	 * Lists the content of the target directory Returns SrcDirNotExistent if
-	 * the target directory does not exist Returns null if the target directory
-	 * is empty
-	 *
+	 * Lists the content of the target directory 
+	 * Returns a String array of the names of contents
+	 * Returns null if the target directory is empty or directory doesn't exist
+	 * 
 	 * Example usage: ListDir("/Shahram/CSCI485")
 	 */
-	public String[] ListDir(String tgt) {
-		/*
+	public ArrayList<String> ListDir(String tgt) {
 		//get the target folder
-		File Directory = new File(tgt);
-		
-		//if directory doesn't exist
-		if(!Directory.exists()){
-			return SrcDirNotExistent;
+		File Directory = new File("source/" + tgt);
+		String [] contents = Directory.list();
+		ArrayList<String> concat = new ArrayList<String>();
+		for(int a = 0; a < contents.length; a++){
+			if(Files.isDirectory(Paths.get("source/" + tgt + "/" + contents[a]))){
+				concat.addAll(ListDir(tgt + "/" + contents[a]));
+			}
+			concat.add(tgt + "/" + contents[a]);
 		}
-		
-		//if directory is empty
-		String[] Contents = Directory.list();
-		if(Contents.size()==0){
-			return null;
-		}	
-		
-		//if directory contains files/directories
-		 return Contents;
-		 */
-		return null;
+		return concat;
 	}
 	
 	public boolean DirExists(String name){
-		return Files.exists(Paths.get(sourcePath)) && Files.isDirectory(Paths.get(sourcePath)); 	
+		return Files.exists(Paths.get(name)) && Files.isDirectory(Paths.get(name)); 	
 	}
 	
-	public static boolean DeleteDirectory(File directory) {
+	//CLEANUP SOURCE DIRECTORY BEFORE UNIT TESTS
+	public static boolean UnitTestCLeanUp(File directory) {
 	    if(directory.exists()){
 	        File[] files = directory.listFiles();
 	        if(null!=files){
 	            for(int i=0; i<files.length; i++) {
 	                if(files[i].isDirectory()) {
-	                    DeleteDirectory(files[i]);
+	                	UnitTestCLeanUp(files[i]);
 	                }
 	                else {
 	                    files[i].delete();
