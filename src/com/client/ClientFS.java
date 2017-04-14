@@ -13,11 +13,6 @@ import java.util.Arrays;
 import com.master.Master;
 
 public class ClientFS extends Client{
-	private Socket clientMasterConn;
-	private int port = 9999;
-	private DataInputStream din;
-	private DataOutputStream dos;
-	private String hostName = "localhost";
 
 	public enum FSReturnVals {
 		DirExists, // Returned by CreateDir when directory exists 0
@@ -33,16 +28,6 @@ public class ClientFS extends Client{
 		NotImplemented, // Specific to CSCI 485 and its unit tests 10 
 		Success, //Returned when a method succeeds 11
 		Fail //Returned when a method fails 12
-	}
-	
-	public ClientFS(){
-		try {
-			clientMasterConn = new Socket(hostName, port);
-			dos = new DataOutputStream(clientMasterConn.getOutputStream());
-			din = new DataInputStream(clientMasterConn.getInputStream());
-		} catch (IOException e) {
-			e.printStackTrace();
-		} 
 	}
 
 	/**

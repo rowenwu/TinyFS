@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import com.chunkserver.ChunkServer;
 import com.client.ClientFS.FSReturnVals;
 public class FileHandle {
+	private String filePath;
 	static final int chunkSize = ChunkServer.ChunkSize;
 	public static final int bytesPerIDTag = 8;
 	private int chunkBytesUsed;
@@ -287,6 +288,10 @@ public class FileHandle {
 	//Returns the first chunk handle in the file
 	public String getFirstChunkHandle(){
 		return currentChunkHandle;
+	}
+	
+	public void setFilePath(String filePath){
+		this.filePath = filePath;
 	}
 
 

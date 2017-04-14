@@ -2,6 +2,8 @@ package com.client;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -26,6 +28,13 @@ public class Client implements ClientInterface {
 	static Socket ClientSocket;
 	static ObjectOutputStream WriteOutput;
 	static ObjectInputStream ReadInput;
+	
+	//client master connections
+	private Socket clientMasterConn;
+	private int port = 9999;
+	protected DataInputStream din;
+	protected DataOutputStream dos;
+	private String hostName = "localhost";
 	
 	public static byte[] RecvPayload(String caller, ObjectInputStream instream, int sz){
 		byte[] tmpbuf = new byte[sz];
@@ -64,6 +73,15 @@ public class Client implements ClientInterface {
 	 * Initialize the client  FileNotFoundException
 	 */
 	public Client(){
+		// connect to master
+		try {
+			clientMasterConn = new Socket(hostName, port);
+			dos = new DataOutputStream(clientMasterConn.getOutputStream());
+			din = new DataInputStream(clientMasterConn.getInputStream());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		//connect to chunkserver
 		if (ClientSocket != null) return; //The client is already connected
 		try {
 			BufferedReader binput = new BufferedReader(new FileReader(ChunkServer.ClientConfigFile));
