@@ -116,7 +116,8 @@ public class Master {
 					dos.flush();
 					break;
 				case DeleteFileCMD:
-					//TODO
+					dos.writeInt(DeleteFile(din.readUTF(), din.readUTF()));
+					dos.flush();
 					break;
 				case OpenFileCMD:
 					//TODO
@@ -337,14 +338,39 @@ public class Master {
 			    return 11;
 			}
 		} catch (IOException e) {
-			System.out.println("Error creating file");
+			System.out.println("Error creating file: " + sourcePath + tgtdir + filename);
 			e.printStackTrace();
 		}
 		return 4;
 	}
 	
+	/**
+	 * Deletes the specified filename from the tgtdir 
+	 * Returns SrcDirNotExistent if the target directory does not exist - 2
+	 * Returns FileDoesNotExist if the specified filename is not-existent - 5
+	 * Returns success if deletion succeeds - 11
+	 *
+	 * Example usage: DeleteFile("/Shahram/CSCI485/Lecture1/", "Intro.pptx")
+	 */
+	public int DeleteFile(String tgtdir, String filename) {
+		if(!DirExists(sourcePath + tgtdir)) return 2;
+		if(!FileExists(sourcePath + tgtdir + filename))
+			return 5;
+		try {
+			Files.delete(Paths.get(sourcePath + tgtdir + filename));
+		} catch (IOException e) {
+			System.out.println("Error deleting file: " + sourcePath + tgtdir + filename);
+			e.printStackTrace();
+		}
+		return 11;
+	}
+	
 	public boolean DirExists(String name){
 		return Files.exists(Paths.get(name)) && Files.isDirectory(Paths.get(name)); 	
+	}
+	
+	public boolean FileExists(String name){
+		return Files.exists(Paths.get(name)) && !Files.isDirectory(Paths.get(name)); 	
 	}
 	
 	// change the number of records in the hash table and the persistent file
