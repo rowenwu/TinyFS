@@ -71,6 +71,8 @@ public class Master {
 			filesToChunks = mapFilesToChunks("");
 		}
 		
+
+		
 		// SINGLE CLIENT CONNECTION - MUST BE MODIFIED LATER FOR MULTITHREADING
 		ServerSocket commChannel = null;
 		try{
