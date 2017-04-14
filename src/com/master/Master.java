@@ -33,7 +33,7 @@ public class Master {
 	public Hashtable<String, Vector<String>> filesToChunks;
 	public static Hashtable<String, Integer> numChunkRecords;
 	private static int chunkNum; 
-	private static String sourcePath;	
+	private static final String sourcePath = "source";	
 	
 	public static void main(String[] args){	
 
@@ -51,78 +51,77 @@ public class Master {
 	 * Sets up map of files to chunks 
 	 * Starts listening for client and chunkserver connections 
 	 */
-//	public Master(){
-//		// Set up source folder so that the file directory is independent of other preexisting folders 
-//		sourcePath = System.getProperty("user.dir");
-//		sourcePath += "\\source";
-//		if (!Files.exists(Paths.get(sourcePath)) || !Files.isDirectory(Paths.get(sourcePath))) {	
-//			chunkNum = 0;
-//			try {
-//				Files.createDirectories(Paths.get(sourcePath));
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-//		} 
-//		else {
-//			filesToChunks = mapFilesToChunks("");
-//		}
-//		
-//		// SINGLE CLIENT CONNECTION - MUST BE MODIFIED LATER FOR MULTITHREADING
-//		ServerSocket commChannel = null;
-//		try{
-//			commChannel = new ServerSocket(port);
-//			Socket clientConn = commChannel.accept();
-//			DataOutputStream dos = new DataOutputStream(clientConn.getOutputStream());
-//			DataInputStream din = new DataInputStream(clientConn.getInputStream());
-//			while(true){
-//				int CMD = din.readInt();
-////				System.out.println(CMD);
-//				switch (CMD){
-//				case CreateDirCMD:
-//					dos.writeInt(CreateDir(din.readUTF(), din.readUTF()));
-//					dos.flush();
-//					break;
-//				case DeleteDirCMD:
-//					dos.writeInt(DeleteDir(din.readUTF()));
-//					dos.flush();
-//					break;
-//				case RenameDirCMD:
-//					dos.writeInt(RenameDir(din.readUTF(), din.readUTF()));
-//					dos.flush();
-//					break;
-//				case ListDirCMD:
-//					String target = din.readUTF();
-//					if(!DirExists(sourcePath + target)){
-//						dos.writeInt(-1);
-//					}
-//					ArrayList<String> files = ListDir(target);
-//					// send -1 to client if null
-//					if(files == null) 
-//						dos.writeInt(-1);
-//					else {
-//						dos.writeInt(files.size());
-//						for(int i = 0; i < files.size(); i++){
-//							dos.writeUTF(files.get(i));
-//						}
-//					}
-//					dos.flush();
-//					break;
-//				default:
-//					System.out.println("Error in Master, specified CMD "+CMD+" is not recognized.");
-//					break;	
-//				}
-//			}
-//		} catch (IOException e) {
-//			System.out.println("Client connection closed");
-////			e.printStackTrace();
-//		} finally {
-//			try {
-//				commChannel.close();
-//			} catch (IOException e) {
-//				System.out.println("Error closing server socket");
-//				e.printStackTrace();
-//			}
-//		}
+	public Master(){
+		numChunkRecords = new Hashtable<String, Integer>();
+		if (!Files.exists(Paths.get(sourcePath)) || !Files.isDirectory(Paths.get(sourcePath))) {	
+			chunkNum = 0;
+			try {
+				Files.createDirectories(Paths.get(sourcePath));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			filesToChunks = new Hashtable<String, Vector<String>>();
+		} 
+		else {
+			filesToChunks = mapFilesToChunks("");
+		}
+		
+		// SINGLE CLIENT CONNECTION - MUST BE MODIFIED LATER FOR MULTITHREADING
+		ServerSocket commChannel = null;
+		try{
+			commChannel = new ServerSocket(port);
+			Socket clientConn = commChannel.accept();
+			DataOutputStream dos = new DataOutputStream(clientConn.getOutputStream());
+			DataInputStream din = new DataInputStream(clientConn.getInputStream());
+			while(true){
+				int CMD = din.readInt();
+//				System.out.println(CMD);
+				switch (CMD){
+				case CreateDirCMD:
+					dos.writeInt(CreateDir(din.readUTF(), din.readUTF()));
+					dos.flush();
+					break;
+				case DeleteDirCMD:
+					dos.writeInt(DeleteDir(din.readUTF()));
+					dos.flush();
+					break;
+				case RenameDirCMD:
+					dos.writeInt(RenameDir(din.readUTF(), din.readUTF()));
+					dos.flush();
+					break;
+				case ListDirCMD:
+					String target = din.readUTF();
+					if(!DirExists(sourcePath + target)){
+						dos.writeInt(-1);
+					}
+					ArrayList<String> files = ListDir(target);
+					// send -1 to client if null
+					if(files == null) 
+						dos.writeInt(-1);
+					else {
+						dos.writeInt(files.size());
+						for(int i = 0; i < files.size(); i++){
+							dos.writeUTF(files.get(i));
+						}
+					}
+					dos.flush();
+					break;
+				default:
+					System.out.println("Error in Master, specified CMD "+CMD+" is not recognized.");
+					break;	
+				}
+			}
+		} catch (IOException e) {
+			System.out.println("Client connection closed");
+//			e.printStackTrace();
+		} finally {
+			try {
+				commChannel.close();
+			} catch (IOException e) {
+				System.out.println("Error closing server socket");
+				e.printStackTrace();
+			}
+		}
 		
 //		
 //		// listen for incoming client connections
@@ -143,9 +142,9 @@ public class Master {
 //				e.printStackTrace();
 //			}
 //		}
-//		
-//		
-//	}
+		
+		
+	}
 	
 //	class ConnectionThread extends Thread {
 //		private DataOutputStream dos;
@@ -200,7 +199,8 @@ public class Master {
 						StringTokenizer st = new StringTokenizer(line);
 						String handle = st.nextToken();
 						chunkHandles.add(handle);
-						numChunkRecords.put(handle, new Integer(st.nextToken()));
+						Integer i = new Integer(st.nextToken());
+						numChunkRecords.put(handle, i);
 						// set max chunk number
 						int num = Integer.parseInt(handle.substring(1, handle.length()));
 						if(num > chunkNum) chunkNum = num++;
@@ -298,8 +298,10 @@ public class Master {
 		File file = new File("source" + tgtdir + filename);
 
 	    try {
-			if (file.createNewFile())
+			if (file.createNewFile()){
+				filesToChunks.put(tgtdir+filename, new Vector<String>());
 			    return 11;
+			}
 		} catch (IOException e) {
 			System.out.println("Error creating file");
 			e.printStackTrace();
@@ -362,17 +364,19 @@ public class Master {
 		Vector<String> chunks = getChunkHandles(filePath);
 		chunks.add(chunkHandle);
 		filesToChunks.put(filePath, chunks);
+		numChunkRecords.put(chunkHandle, 0);
 		return chunkHandle;
 	}
 	
 	private static String formatChunkNum(){
 		DecimalFormat myFormatter = new DecimalFormat("000000");
+		
 		return myFormatter.format(chunkNum);
 	}
 	
 	private static String formatNumRecs(int numRecords){
 		DecimalFormat myFormatter = new DecimalFormat("0000");
-		return myFormatter.format(chunkNum);
+		return myFormatter.format(numRecords);
 	}
 	
 	//CLEANUP SOURCE DIRECTORY BEFORE UNIT TESTS
