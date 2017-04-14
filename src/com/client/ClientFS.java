@@ -41,11 +41,11 @@ public class ClientFS extends Client{
 	 */
 	public FSReturnVals CreateDir(String src, String dirname) {	
 		try {
-			dos.writeInt(Master.CreateDirCMD);
-			dos.writeUTF(src);
-			dos.writeUTF(dirname);
-			dos.flush();
-			return FSReturnVals.values()[din.readInt()];
+			masterDos.writeInt(Master.CreateDirCMD);
+			masterDos.writeUTF(src);
+			masterDos.writeUTF(dirname);
+			masterDos.flush();
+			return FSReturnVals.values()[masterDin.readInt()];
 		} catch (IOException e) {
 			System.out.println("CreateDir failed, IO Exception");
 			e.printStackTrace();
@@ -64,10 +64,10 @@ public class ClientFS extends Client{
 	 */
 	public FSReturnVals DeleteDir(String src, String dirname) {
 		try {
-			dos.writeInt(Master.DeleteDirCMD);
-			dos.writeUTF(src + dirname);
-			dos.flush();
-			return FSReturnVals.values()[din.readInt()];
+			masterDos.writeInt(Master.DeleteDirCMD);
+			masterDos.writeUTF(src + dirname);
+			masterDos.flush();
+			return FSReturnVals.values()[masterDin.readInt()];
 		} catch (IOException e) {
 			System.out.println("DeleteDir failed, IO Exception");
 			e.printStackTrace();
@@ -86,11 +86,11 @@ public class ClientFS extends Client{
 	 */
 	public FSReturnVals RenameDir(String src, String NewName) {
 		try {
-			dos.writeInt(Master.RenameDirCMD);
-			dos.writeUTF(src);
-			dos.writeUTF(NewName);
-			dos.flush();
-			return FSReturnVals.values()[din.readInt()];
+			masterDos.writeInt(Master.RenameDirCMD);
+			masterDos.writeUTF(src);
+			masterDos.writeUTF(NewName);
+			masterDos.flush();
+			return FSReturnVals.values()[masterDin.readInt()];
 		} catch (IOException e) {
 			System.out.println("RenameDir failed, IO Exception");
 			e.printStackTrace();
@@ -107,15 +107,15 @@ public class ClientFS extends Client{
 	 */
 	public String[] ListDir(String tgt) {
 		try {
-			dos.writeInt(Master.ListDirCMD);
-			dos.writeUTF(tgt);
-			dos.flush();
-			int numFiles = din.readInt();
+			masterDos.writeInt(Master.ListDirCMD);
+			masterDos.writeUTF(tgt);
+			masterDos.flush();
+			int numFiles = masterDin.readInt();
 			if (numFiles == -1)
 				return null;
 			String[] dirs = new String[numFiles];
 			for(int i = 0; i < dirs.length; i++)
-				dirs[i] = din.readUTF();
+				dirs[i] = masterDin.readUTF();
 			Arrays.sort(dirs);
 			return dirs;
 		} catch (IOException e) {

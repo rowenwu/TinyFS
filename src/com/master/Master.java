@@ -44,6 +44,13 @@ public class Master {
 	public static final int DeleteDirCMD = 202;
 	public static final int RenameDirCMD = 203;
 	public static final int ListDirCMD = 204;
+	public static final int CreateFileCMD = 205;
+	public static final int DeleteFileCMD = 206;
+	public static final int OpenFileCMD = 207;
+	public static final int CloseFileCMD = 208;
+	public static final int CreateChunkCMD = 209;
+	public static final int GetNumChunkRecsCMD = 210;
+	public static final int GetChunkHandlesCMD = 211;
 	
 	/*
 	 * Sets up map of files to chunks 
@@ -104,6 +111,34 @@ public class Master {
 					}
 					dos.flush();
 					break;
+				case CreateFileCMD:
+					dos.writeInt(CreateFile(din.readUTF(), din.readUTF()));
+					dos.flush();
+					break;
+				case DeleteFileCMD:
+					//TODO
+					break;
+				case OpenFileCMD:
+					//TODO
+					break;
+				case CloseFileCMD:
+					//TODO
+					break;
+				case CreateChunkCMD:
+					dos.writeUTF(createChunk(din.readUTF()));
+					dos.flush();
+					break;
+				case GetNumChunkRecsCMD:
+					dos.writeInt(getNumChunkRecords(din.readUTF()));
+					dos.flush();
+					break;
+				case GetChunkHandlesCMD:
+					Vector<String> handles = getChunkHandles(din.readUTF());
+					dos.writeInt(handles.size());
+					for(int a = 0; a < handles.size(); a++)
+						dos.writeUTF(handles.get(a));
+					dos.flush();
+					break;
 				default:
 					System.out.println("Error in Master, specified CMD "+CMD+" is not recognized.");
 					break;	
@@ -113,12 +148,13 @@ public class Master {
 			System.out.println("Client connection closed");
 //			e.printStackTrace();
 		} finally {
-			try {
-				commChannel.close();
-			} catch (IOException e) {
-				System.out.println("Error closing server socket");
-				e.printStackTrace();
-			}
+			if(commChannel != null)
+				try {
+					commChannel.close();
+				} catch (IOException e) {
+					System.out.println("Error closing server socket");
+					e.printStackTrace();
+				}
 		}
 		
 //		
@@ -293,7 +329,7 @@ public class Master {
 	public int CreateFile(String tgtdir, String filename){
 		if(!DirExists(sourcePath + tgtdir)) return 2;
 
-		File file = new File("source" + tgtdir + filename);
+		File file = new File(sourcePath + tgtdir + filename);
 
 	    try {
 			if (file.createNewFile()){
@@ -333,8 +369,12 @@ public class Master {
 		} 	
 	}
 	
+	// gets number of chunk records 
+	// returns -1 if chunk doesn't exist
 	public int getNumChunkRecords(String chunkHandle){
-		return numChunkRecords.get(chunkHandle);
+		if(numChunkRecords.get(chunkHandle) != null)
+			return numChunkRecords.get(chunkHandle);
+		return -1;
 	}
 	
 	// logs a chunk in the file with 0000 records
@@ -395,9 +435,11 @@ public class Master {
 	    return(directory.delete());
 	}
 
+	
 	public Vector<String> getChunkHandles(String file) {
-		// TODO Auto-generated method stub
-		return filesToChunks.get(file);
+		if(filesToChunks.get(file) != null)
+			return filesToChunks.get(file);
+		return new Vector<String>();
 	}
 	
 }

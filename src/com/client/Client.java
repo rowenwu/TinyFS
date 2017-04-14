@@ -1,6 +1,5 @@
 package com.client;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -14,9 +13,11 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.Vector;
 
 import com.chunkserver.ChunkServer;
 import com.interfaces.ClientInterface;
+import com.master.Master;
 
 /**
  * implementation of interfaces at the client side
@@ -24,161 +25,134 @@ import com.interfaces.ClientInterface;
  *
  */
 public class Client implements ClientInterface {
-	static int ServerPort = 0;
-	static Socket ClientSocket;
-	static ObjectOutputStream WriteOutput;
-	static ObjectInputStream ReadInput;
+	//client chunkserver
+	private static int csPort = 2222;
+	private static String csHostName = "localhost";
+	private Socket clientCSConn;
+	protected DataOutputStream csDos;
+	protected DataInputStream csDin;
 	
 	//client master connections
 	private Socket clientMasterConn;
-	private int port = 9999;
-	protected DataInputStream din;
-	protected DataOutputStream dos;
-	private String hostName = "localhost";
+	private int masterPort = 9999;
+	private static String masterHostName = "localhost";
+	protected DataInputStream masterDin;
+	protected DataOutputStream masterDos;
 	
-	public static byte[] RecvPayload(String caller, ObjectInputStream instream, int sz){
-		byte[] tmpbuf = new byte[sz];
-		byte[] InputBuff = new byte[sz];
-		int ReadBytes = 0;
-		while (ReadBytes != sz){
-			int cntr=-1;
-			try {
-				cntr = instream.read( tmpbuf, 0, (sz-ReadBytes) );
-				for (int j=0; j < cntr; j++){
-					InputBuff[ReadBytes+j]=tmpbuf[j];
-				}
-			} catch (IOException e) {
-				System.out.println("Error in RecvPayload ("+caller+"), failed to read "+sz+" after reading "+ReadBytes+" bytes.");
-				return null;
-			}
-			if (cntr == -1) {
-				System.out.println("Error in RecvPayload ("+caller+"), failed to read "+sz+" bytes.");
-				return null;
-			}
-			else ReadBytes += cntr;
-		}
-		return InputBuff;
-	}
-	
-	public static int ReadIntFromInputStream(String caller, ObjectInputStream instream){
-		int PayloadSize = -1;
-		
-		byte[] InputBuff = RecvPayload(caller, instream, 4);
-		if (InputBuff != null)
-			PayloadSize = ByteBuffer.wrap(InputBuff).getInt();
-		return PayloadSize;
-	}
-	
-	/**
-	 * Initialize the client  FileNotFoundException
-	 */
 	public Client(){
-		// connect to master
+		clientCSConn = null;
+		clientMasterConn = null;
 		try {
-			clientMasterConn = new Socket(hostName, port);
-			dos = new DataOutputStream(clientMasterConn.getOutputStream());
-			din = new DataInputStream(clientMasterConn.getInputStream());
+			clientMasterConn = new Socket(masterHostName, masterPort);
+			masterDos = new DataOutputStream(clientMasterConn.getOutputStream());
+			masterDin = new DataInputStream(clientMasterConn.getInputStream());
+			clientCSConn = new Socket(csHostName, csPort);
+			csDos = new DataOutputStream(clientCSConn.getOutputStream());
+			csDin = new DataInputStream(clientCSConn.getInputStream());
+			
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
-		//connect to chunkserver
-		if (ClientSocket != null) return; //The client is already connected
-		try {
-			BufferedReader binput = new BufferedReader(new FileReader(ChunkServer.ClientConfigFile));
-			String port = binput.readLine();
-			port = port.substring( port.indexOf(':')+1 );
-			ServerPort = Integer.parseInt(port);
-			
-			ClientSocket = new Socket("127.0.0.1", ServerPort);
-			WriteOutput = new ObjectOutputStream(ClientSocket.getOutputStream());
-			ReadInput = new ObjectInputStream(ClientSocket.getInputStream());
-		}catch (FileNotFoundException e) {
-			System.out.println("Error (Client), the config file "+ ChunkServer.ClientConfigFile +" containing the port of the ChunkServer is missing.");
-		}catch (IOException e) {
-			System.out.println("Can't find file.");
-		}
+		} 
 	}
 	
+	
 	/**
-	 * Create a chunk at the chunk server from the client side.
+	 * send the create command
+	 * read and return chunk handle
 	 */
 	public String createChunk() {
 		try {
-			WriteOutput.writeInt(ChunkServer.PayloadSZ + ChunkServer.CMDlength);
-			WriteOutput.writeInt(ChunkServer.CreateChunkCMD);
-			WriteOutput.flush();
-			
-			int ChunkHandleSize =  ReadIntFromInputStream("Client", ReadInput);
-			ChunkHandleSize -= ChunkServer.PayloadSZ;  //reduce the length by the first four bytes that identify the length
-			byte[] CHinBytes = RecvPayload("Client", ReadInput, ChunkHandleSize); 
-			return (new String(CHinBytes)).toString();
+			csDos.writeInt(ChunkServer.CreateChunkCMD);
+			csDos.flush();
+			String chunkHandle = csDin.readUTF();
+			return new String(chunkHandle);
 		} catch (IOException e) {
-			System.out.println("Error in Client.createChunk:  Failed to create a chunk.");
+			e.printStackTrace();
+		} 
+		return null;
+	}
+
+	/**
+	 * send the write command, chunk handle, payload size, and payload to the server 
+	 * read and return the boolean sent back
+	 */
+	public boolean writeChunk(String ChunkHandle, byte[] payload, int offset) {
+		if(offset + payload.length > ChunkServer.ChunkSize) {
+			System.out.println("The chunk write should be within the range of the file, invalid chunk write!");
+			return false;
+		}
+		try {
+			csDos.writeInt(ChunkServer.WriteChunkCMD);
+			csDos.writeUTF(ChunkHandle);
+			csDos.writeInt(payload.length);
+			csDos.write(payload);
+			csDos.writeInt(offset);
+			csDos.flush();
+			return csDin.readBoolean();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} 
+		return false;
+	}
+
+	/*
+	 * send the read command, chunk handle, offset, and number of bytes to the server
+	 * read the response into a byte array
+	 */
+	public byte[] readChunk(String ChunkHandle, int offset, int NumberOfBytes) {
+		if(NumberOfBytes + offset > ChunkServer.ChunkSize) {
+			System.out.println("The chunk read should be within the range of the file, invalid chunk read!");
+			return null;
+		}
+		try {
+			csDos.writeInt(ChunkServer.ReadChunkCMD);
+			csDos.writeUTF(ChunkHandle);
+			csDos.writeInt(offset); 
+			csDos.writeInt(NumberOfBytes); 
+			csDos.flush();
+//			System.out.println("Sent read command: " + ChunkHandle + " " + offset + " " + NumberOfBytes); 
+			byte[] byteArr = new byte[NumberOfBytes];
+			csDin.readFully(byteArr);
+			return byteArr;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} 
 		return null;
 	}
 	
-	/**
-	 * Write a chunk at the chunk server from the client side.
-	 */
-	public boolean writeChunk(String ChunkHandle, byte[] payload, int offset) {
-		if(offset + payload.length > ChunkServer.ChunkSize){
-			System.out.println("The chunk write should be within the range of the file, invalide chunk write!");
-			return false;
-		}
+	// Sends command to master to get list of chunk handles
+	// returns array of chunk handle strings
+	// returns null if file has no chunk handles or file doesn't exist
+	public String[] getChunkHandles(String filePath){
+		String[] handles = null;
 		try {
-			byte[] CHinBytes = ChunkHandle.getBytes();
-			
-			WriteOutput.writeInt(ChunkServer.PayloadSZ + ChunkServer.CMDlength + (2*4) + payload.length + CHinBytes.length);
-			WriteOutput.writeInt(ChunkServer.WriteChunkCMD);
-			WriteOutput.writeInt(offset);
-			WriteOutput.writeInt(payload.length);
-			WriteOutput.write(payload);
-			WriteOutput.write(CHinBytes);
-			WriteOutput.flush();
-			
-			int result =  Client.ReadIntFromInputStream("Client", ReadInput);
-			if (result == ChunkServer.FALSE) return false;
-			return true;
+			masterDos.writeInt(Master.GetChunkHandlesCMD);
+			masterDos.writeUTF(filePath);
+			masterDos.flush();
+			handles = new String[masterDin.readInt()];
+			for(int a = 0; a < handles.length; a++) 
+				handles[a] = masterDin.readUTF();
 		} catch (IOException e) {
-			System.out.println("Error in Client.createChunk:  Failed to create a chunk.");
+			System.out.println("Error getting chunk handles from master, file : " + filePath);
 			e.printStackTrace();
 		}
-		return false;
+		return handles;
 	}
-	
-	/**
-	 * Read a chunk at the chunk server from the client side.
-	 */
-	public byte[] readChunk(String ChunkHandle, int offset, int NumberOfBytes) {
-		if(NumberOfBytes + offset > ChunkServer.ChunkSize){
-			System.out.println("The chunk read should be within the range of the file, invalide chunk read!");
-			return null;
-		}
-		
+
+	// Sends command to master to get number of chunk records
+	// returns -1 if 
+	public int getNumChunkRecords(String chunkHandle){
 		try {
-			byte[] CHinBytes = ChunkHandle.getBytes();
-			WriteOutput.writeInt(ChunkServer.PayloadSZ + ChunkServer.CMDlength + (2*4) + CHinBytes.length);
-			WriteOutput.writeInt(ChunkServer.ReadChunkCMD);
-			WriteOutput.writeInt(offset);
-			WriteOutput.writeInt(NumberOfBytes);
-			WriteOutput.write(CHinBytes);
-			WriteOutput.flush();
-			
-			int ChunkSize =  Client.ReadIntFromInputStream("Client", ReadInput);
-			ChunkSize -= ChunkServer.PayloadSZ;  //reduce the length by the first four bytes that identify the length
-			byte[] payload = RecvPayload("Client", ReadInput, ChunkSize); 
-			return payload;
+			masterDos.writeInt(Master.GetNumChunkRecsCMD);
+			masterDos.writeUTF(chunkHandle);
+			masterDos.flush();
+			return masterDin.readInt();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			System.out.println("Error getting chunk handles from master, file : " + chunkHandle);
 			e.printStackTrace();
 		}
-
-		return null;
+		return -1;
 	}
-
-	
-
 
 }
