@@ -36,8 +36,6 @@ public class Master {
 	private static final String sourcePath = "source";	
 	
 	public static void main(String[] args){	
-
-		
 		new Master();
 	}
 	
