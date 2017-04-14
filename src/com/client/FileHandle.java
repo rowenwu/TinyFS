@@ -5,6 +5,8 @@ import com.chunkserver.ChunkServer;
 import com.client.ClientFS.FSReturnVals;
 public class FileHandle {
 	private String filePath;
+	private String[] fileChunks;
+	private int chunkIndex;
 	static final int chunkSize = ChunkServer.ChunkSize;
 	public static final int bytesPerIDTag = 8;
 	private int chunkBytesUsed;
@@ -18,6 +20,20 @@ public class FileHandle {
 	public FileHandle(){
 		client = new Client();
 		setupLinkedList();
+		currentChunkHandle = null;
+	}
+	public boolean openFile(String path){
+		if (path == null){return false;}
+		filePath = path;
+		chunkIndex = 0;
+		System.out.println("Ready to read chunk handles from path "+path);
+		fileChunks = client.getChunkHandles(path);
+		System.out.println(fileChunks.length+" chunks in file");
+		if (fileChunks == null){
+			return false;
+		}
+		System.out.println("Ready to change chunk");
+		return changeChunk(fileChunks[chunkIndex]);
 	}
 	public boolean noChunk(){
 		if (currentChunkHandle == null){ return true;}
@@ -38,16 +54,16 @@ public class FileHandle {
 		}
 		return ret.substring(0, ret.length()-1);
 	}
-	public void readAndApplyRecordsList(String input){
-		setupLinkedList();
-		String[] lines = input.split("\n");
-		for (int i = 0; i < lines.length; i++){
-			RID add = new RID(lines[i]);
-			addRecord(add);
+	private void delinkLinkedList(){
+		RID cur = chunkFirstRID;
+		while (cur!=null){
+			cur.inLinkedList = false;
+			cur = cur.next;
 		}
 	}
 	public boolean loadChunkRecordTags(){
-		System.out.println("Loading "+chunkNumRecords+" records from "+currentChunkHandle);
+		delinkLinkedList();
+		//System.out.println("Loading "+chunkNumRecords+" records from "+currentChunkHandle);
 		int byteCount = bytesPerIDTag * chunkNumRecords;
 		int mdOffset = chunkSize - byteCount;
 		chunkBytesUsed = 0;
@@ -133,20 +149,14 @@ public class FileHandle {
 	public int freeBytesCurrentChunk(){
 		return chunkSize - chunkBytesUsed + bytesPerIDTag * chunkNumRecords;
 	}
-	public void changeChunk(String c){
+	public boolean changeChunk(String c){
 		currentChunkHandle = c;
 		if (c!= null){
 			loadNumberOfRecordsInChunk();
 			loadChunkRecordTags();
 		}
 		pointsToLast = (currentChunkHandle == lastChunkHandle);
-	}
-	public void writeOperation(int offset, int size){ writeOperation(currentChunkHandle,offset,size);}
-	public void writeOperation(String chunk, int offset, int size){
-		chunkBytesUsed=offset+size;
-	}
-	public void appendOperation(int size){
-		chunkBytesUsed+=size;
+		return true;
 	}
 	public int getNumberOfRecordsInChunk(){
 		return chunkNumRecords;
@@ -173,6 +183,7 @@ public class FileHandle {
 		return true;
 	}
 	public RID getFileLastRID(){
+		loadLastChunk();
 		return chunkLastRID;
 	}
 	public void blankLinkedList(){
@@ -264,30 +275,43 @@ public class FileHandle {
 	//Return the last chunk handle in the file
 	//Works if last chunk created by FileHandle, doesn't work for loading files
 	public String getLastChunkHandle(){
-		return lastChunkHandle;
+		return fileChunks[fileChunks.length-1];
+	}
+	public void setNumRecords(int x){
+		chunkNumRecords = x;
 	}
 	//Talks to the master to find out how many records are in the current chunk
 	public boolean loadNumberOfRecordsInChunk(){
-		//lastChunkNumRecords = the number of records in the chunk;
-		return true;
-	}
-	//Delete this method when the above is implemented
-	public void setNumberOfRecord(int x){
-		chunkNumRecords = x;
+		try{
+			chunkNumRecords = client.getNumChunkRecords(currentChunkHandle);
+			return true;
+		}catch(Exception e){
+			return false;
+		}
 	}
 	//Identifies and loads record information on the next chunk in the file
 	//True if there is another chunk, false if there is not
 	public boolean nextChunk(){
+		if (chunkIndex + 1 < fileChunks.length){
+			chunkIndex++;
+			changeChunk(fileChunks[chunkIndex]);
+			return true;
+		}
 		return false;
 	}
 	//Identifies and loads record information on the previous chunk in the file
 	//True if there is another chunk, false if there is not
 	public boolean previousChunk(){
+		if (chunkIndex - 1 >= 0){
+			chunkIndex--;
+			changeChunk(fileChunks[chunkIndex]);
+			return true;
+		}
 		return false;
 	}
 	//Returns the first chunk handle in the file
 	public String getFirstChunkHandle(){
-		return currentChunkHandle;
+		return fileChunks[0];
 	}
 	
 	public void setFilePath(String filePath){
