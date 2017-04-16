@@ -1,11 +1,12 @@
 package com.client;
 import java.nio.ByteBuffer;
+import java.util.Vector;
 
 import com.chunkserver.ChunkServer;
 import com.client.ClientFS.FSReturnVals;
 public class FileHandle {
 	private String filePath;
-	private String[] fileChunks;
+	private Vector<String> fileChunks;
 	private int chunkIndex;
 	static final int chunkSize = ChunkServer.ChunkSize;
 	public static final int bytesPerIDTag = 8;
@@ -21,19 +22,21 @@ public class FileHandle {
 		client = new Client();
 		setupLinkedList();
 		currentChunkHandle = null;
+		fileChunks = new Vector<String>();
 	}
 	public boolean openFile(String path){
 		if (path == null){return false;}
 		filePath = path;
 		chunkIndex = 0;
+		fileChunks = new Vector<String>();
 		System.out.println("Ready to read chunk handles from path "+path);
-		fileChunks = client.getChunkHandles(path);
-		System.out.println(fileChunks.length+" chunks in file");
+		fileChunks.copyInto(client.getChunkHandles(path));
+		System.out.println(fileChunks.size()+" chunks in file");
 		if (fileChunks == null){
 			return false;
 		}
 		System.out.println("Ready to change chunk");
-		return changeChunk(fileChunks[chunkIndex]);
+		return changeChunk(fileChunks.get(chunkIndex));
 	}
 	public boolean noChunk(){
 		if (currentChunkHandle == null){ return true;}
@@ -127,6 +130,7 @@ public class FileHandle {
 		chunkFirstRID = null;
 		chunkLastRID = null;
 		pointsToLast = true;
+		fileChunks.add(currentChunkHandle);
 		return currentChunkHandle;
 	}
 	public int getRecordSize(RID r){
@@ -275,7 +279,7 @@ public class FileHandle {
 	//Return the last chunk handle in the file
 	//Works if last chunk created by FileHandle, doesn't work for loading files
 	public String getLastChunkHandle(){
-		return fileChunks[fileChunks.length-1];
+		return fileChunks.get(fileChunks.size()-1);
 	}
 	public void setNumRecords(int x){
 		chunkNumRecords = x;
@@ -292,9 +296,9 @@ public class FileHandle {
 	//Identifies and loads record information on the next chunk in the file
 	//True if there is another chunk, false if there is not
 	public boolean nextChunk(){
-		if (chunkIndex + 1 < fileChunks.length){
+		if (chunkIndex + 1 < fileChunks.size()){
 			chunkIndex++;
-			changeChunk(fileChunks[chunkIndex]);
+			changeChunk(fileChunks.get(chunkIndex));
 			return true;
 		}
 		return false;
@@ -304,14 +308,14 @@ public class FileHandle {
 	public boolean previousChunk(){
 		if (chunkIndex - 1 >= 0){
 			chunkIndex--;
-			changeChunk(fileChunks[chunkIndex]);
+			changeChunk(fileChunks.get(chunkIndex));
 			return true;
 		}
 		return false;
 	}
 	//Returns the first chunk handle in the file
 	public String getFirstChunkHandle(){
-		return fileChunks[0];
+		return fileChunks.get(0);
 	}
 	
 	public void setFilePath(String filePath){
