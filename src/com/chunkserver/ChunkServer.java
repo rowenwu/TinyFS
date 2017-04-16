@@ -32,7 +32,6 @@ public class ChunkServer implements ChunkServerInterface {
 	private static String filePath;	
 	private static int port = 2222;
 	private static ServerSocket ss;
-	private static Socket socket;
 	
 	//Used for the file system
 	public static long counter;
