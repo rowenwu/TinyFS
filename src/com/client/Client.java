@@ -28,20 +28,19 @@ public class Client implements ClientInterface {
 	//client chunkserver
 	private static int csPort = 2222;
 	private static String csHostName = "localhost";
-	private Socket clientCSConn;
+	static Socket clientCSConn;
 	protected DataOutputStream csDos;
 	protected DataInputStream csDin;
 	
 	//client master connections
-	private Socket clientMasterConn;
+	static Socket clientMasterConn;
 	private int masterPort = 9999;
 	private static String masterHostName = "localhost";
 	protected DataInputStream masterDin;
 	protected DataOutputStream masterDos;
 	
 	public Client(){
-		clientCSConn = null;
-		clientMasterConn = null;
+		if ((clientCSConn != null) && (clientMasterConn != null)) return;
 		try {
 			clientMasterConn = new Socket(masterHostName, masterPort);
 			masterDos = new DataOutputStream(clientMasterConn.getOutputStream());
