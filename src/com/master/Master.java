@@ -70,151 +70,124 @@ public class Master {
 		else {
 			filesToChunks = mapFilesToChunks("");
 		}
-		
 
-		
-		// SINGLE CLIENT CONNECTION - MUST BE MODIFIED LATER FOR MULTITHREADING
 		ServerSocket commChannel = null;
-		try{
+		
+		// listen for incoming client connections
+		try {
 			commChannel = new ServerSocket(port);
-			Socket clientConn = commChannel.accept();
-			DataOutputStream dos = new DataOutputStream(clientConn.getOutputStream());
-			DataInputStream din = new DataInputStream(clientConn.getInputStream());
-			while(true){
-				int CMD = din.readInt();
-//				System.out.println(CMD);
-				switch (CMD){
-				case CreateDirCMD:
-					dos.writeInt(CreateDir(din.readUTF(), din.readUTF()));
-					dos.flush();
-					break;
-				case DeleteDirCMD:
-					dos.writeInt(DeleteDir(din.readUTF()));
-					dos.flush();
-					break;
-				case RenameDirCMD:
-					dos.writeInt(RenameDir(din.readUTF(), din.readUTF()));
-					dos.flush();
-					break;
-				case ListDirCMD:
-					String target = din.readUTF();
-					if(!DirExists(sourcePath + target)){
-						dos.writeInt(-1);
-					}
-					ArrayList<String> files = ListDir(target);
-					// send -1 to client if null
-					if(files == null) 
-						dos.writeInt(-1);
-					else {
-						dos.writeInt(files.size());
-						for(int i = 0; i < files.size(); i++){
-							dos.writeUTF(files.get(i));
-						}
-					}
-					dos.flush();
-					break;
-				case CreateFileCMD:
-					dos.writeInt(CreateFile(din.readUTF(), din.readUTF()));
-					dos.flush();
-					break;
-				case DeleteFileCMD:
-					dos.writeInt(DeleteFile(din.readUTF(), din.readUTF()));
-					dos.flush();
-					break;
-				case OpenFileCMD:
-					//TODO
-					break;
-				case CloseFileCMD:
-					//TODO
-					break;
-				case CreateChunkCMD:
-					dos.writeUTF(createChunk(din.readUTF()));
-					dos.flush();
-					break;
-				case GetNumChunkRecsCMD:
-					dos.writeInt(getNumChunkRecords(din.readUTF()));
-					dos.flush();
-					break;
-				case GetChunkHandlesCMD:
-					Vector<String> handles = getChunkHandles(din.readUTF());
-					dos.writeInt(handles.size());
-					for(int a = 0; a < handles.size(); a++)
-						dos.writeUTF(handles.get(a));
-					dos.flush();
-					break;
-				default:
-					System.out.println("Error in Master, specified CMD "+CMD+" is not recognized.");
-					break;	
-				}
+			System.out.println("listening...");
+			while (true) {
+				new ConnectionThread(commChannel.accept()).start();
 			}
 		} catch (IOException e) {
-			System.out.println("Client connection closed");
-//			e.printStackTrace();
+			System.out.println("Error establishing client connection");
+			e.printStackTrace();
 		} finally {
-			if(commChannel != null)
-				try {
-					commChannel.close();
-				} catch (IOException e) {
-					System.out.println("Error closing server socket");
-					e.printStackTrace();
-				}
+			try {
+				commChannel.close();
+			} catch (IOException e) {
+				System.out.println("Error closing server socket");
+				e.printStackTrace();
+			}
 		}
-		
-//		
-//		// listen for incoming client connections
-//		try {
-//			commChannel = new ServerSocket(port);
-//			System.out.println("listening...");
-//			while (true) {
-//				new ConnectionThread(commChannel.accept()).start();
-//			}
-//		} catch (IOException e) {
-//			System.out.println("Error establishing client connection");
-//			e.printStackTrace();
-//		} finally {
-//			try {
-//				commChannel.close();
-//			} catch (IOException e) {
-//				System.out.println("Error closing server socket");
-//				e.printStackTrace();
-//			}
-//		}
 		
 		
 	}
 	
-//	class ConnectionThread extends Thread {
-//		private DataOutputStream dos;
-//		private DataInputStream din;
-//		private Socket socket;
-//
-//		public ConnectionThread(Socket socket) {
-//			this.socket = socket;
-//		}
-//
-//		public void run(){
-//			try {
-//				dos = new DataOutputStream(socket.getOutputStream());
-//				din = new DataInputStream(socket.getInputStream());
-//				
-//				while(true){
-//					int CMD = din.readInt();
-//					switch (CMD){
-//					case CreateDirCMD:
-//						
-//					}
-//				}
-//			} catch (IOException e) {
-//				System.out.println("Client connection closed");
-//			} finally {
-//				try {
-//					socket.close();
-//				} catch (IOException e) {
-//					e.printStackTrace();
-//				}
-//			}
-//		}
-//	}
+	class ConnectionThread extends Thread {
+		private Socket socket;
+
+		public ConnectionThread(Socket socket) {
+			this.socket = socket;
+		}
+
+		public void run(){
+			try {
+				DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+				DataInputStream din = new DataInputStream(socket.getInputStream());
+				
+				while(true){
+					dos.flush();
+					while(true){
+						int CMD = din.readInt();
+						switch (CMD){
+						case CreateDirCMD:
+							dos.writeInt(CreateDir(din.readUTF(), din.readUTF()));
+							dos.flush();
+							break;
+						case DeleteDirCMD:
+							dos.writeInt(DeleteDir(din.readUTF()));
+							dos.flush();
+							break;
+						case RenameDirCMD:
+							dos.writeInt(RenameDir(din.readUTF(), din.readUTF()));
+							dos.flush();
+							break;
+						case ListDirCMD:
+							String target = din.readUTF();
+							if(!DirExists(sourcePath + target)){
+								dos.writeInt(-1);
+							}
+							ArrayList<String> files = ListDir(target);
+							// send -1 to client if null
+							if(files == null) 
+								dos.writeInt(-1);
+							else {
+								dos.writeInt(files.size());
+								for(int i = 0; i < files.size(); i++){
+									dos.writeUTF(files.get(i));
+								}
+							}
+							dos.flush();
+							break;
+						case CreateFileCMD:
+							dos.writeInt(CreateFile(din.readUTF(), din.readUTF()));
+							dos.flush();
+							break;
+						case DeleteFileCMD:
+							dos.writeInt(DeleteFile(din.readUTF(), din.readUTF()));
+							dos.flush();
+							break;
+						case OpenFileCMD:
+							//TODO
+							break;
+						case CloseFileCMD:
+							//TODO
+							break;
+						case CreateChunkCMD:
+							dos.writeUTF(createChunk(din.readUTF()));
+							dos.flush();
+							break;
+						case GetNumChunkRecsCMD:
+							dos.writeInt(getNumChunkRecords(din.readUTF()));
+							dos.flush();
+							break;
+						case GetChunkHandlesCMD:
+							Vector<String> handles = getChunkHandles(din.readUTF());
+							dos.writeInt(handles.size());
+							for(int a = 0; a < handles.size(); a++)
+								dos.writeUTF(handles.get(a));
+							dos.flush();
+							break;
+						default:
+							System.out.println("Error in Master, specified CMD "+CMD+" is not recognized.");
+							break;	
+						}
+					}
+				}
+			} catch (IOException e) {
+				System.out.println("Client connection closed");
+			} finally {
+				try {
+					socket.close();
+				} catch (IOException e) {
+					System.out.println("Error closing server socket");
+					e.printStackTrace();
+				}
+			}
+		}
+	}
 	
 	// recursively enter each directory and each file where chunkhandles are stored
 	private Hashtable<String, Vector<String>> mapFilesToChunks(String directory){

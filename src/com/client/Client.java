@@ -46,6 +46,7 @@ public class Client implements ClientInterface {
 			clientMasterConn = new Socket(masterHostName, masterPort);
 			masterDos = new DataOutputStream(clientMasterConn.getOutputStream());
 			masterDin = new DataInputStream(clientMasterConn.getInputStream());
+			System.out.println(masterDin.readUTF());
 			clientCSConn = new Socket(csHostName, csPort);
 			csDos = new DataOutputStream(clientCSConn.getOutputStream());
 			csDin = new DataInputStream(clientCSConn.getInputStream());
@@ -130,7 +131,10 @@ public class Client implements ClientInterface {
 			masterDos.writeInt(Master.GetChunkHandlesCMD);
 			masterDos.writeUTF(filePath);
 			masterDos.flush();
-			handles = new String[masterDin.readInt()];
+			int numHandles = masterDin.readInt();
+			if(numHandles == 0)
+				return null;
+			handles = new String[numHandles];
 			for(int a = 0; a < handles.length; a++) 
 				handles[a] = masterDin.readUTF();
 		} catch (IOException e) {
