@@ -58,7 +58,6 @@ public class ClientFS extends Client{
 	 * Returns SrcDirNotExistent if the src directory does not exist - 2
 	 * Returns DirNotEmpty if directory is not empty - 1
 	 * Returns Success if deletion succeeds - 11
-	 * Returns Fail if deletion fails - 12
 	 *
 	 * Example usage: DeleteDir("/Shahram/CSCI485/", "Lecture1")
 	 */

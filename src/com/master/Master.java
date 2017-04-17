@@ -14,6 +14,8 @@ import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -25,15 +27,17 @@ import java.util.Vector;
 
 
 import com.client.Client;
+import com.client.FileHandle;
 import com.client.ClientFS.FSReturnVals;
 
 
 public class Master {
-	private static int port = 9999;
-	public Hashtable<String, Vector<String>> filesToChunks;
-	public static Hashtable<String, Integer> numChunkRecords;
-	private static int chunkNum; 
-	private static final String sourcePath = "source";	
+	private int port = 9999;
+	private Hashtable<String, Vector<String>> filesToChunks;
+	private Hashtable<String, Integer> numChunkRecords;
+	private int chunkNum; 
+	private final String sourcePath = "source";	
+	private FileDirLock fileLock;
 	
 	public static void main(String[] args){	
 		new Master();
@@ -70,6 +74,7 @@ public class Master {
 		else {
 			filesToChunks = mapFilesToChunks("");
 		}
+		fileLock =  new FileDirLock();
 
 		ServerSocket commChannel = null;
 		
@@ -228,6 +233,7 @@ public class Master {
 	
 	/**
 	 * Creates the specified dirname in the src directory 
+	 * Acquires write lock on src dir
 	 * Returns SrcDirNotExistent if the src directory does not exist - 2
 	 * Returns DirExists if directory already exists - 0
 	 * Returns Success if creation succeeds - 11
@@ -236,68 +242,113 @@ public class Master {
 		if(!DirExists(sourcePath + src)) return 2;
 		if(DirExists(sourcePath + src + dirname)) return 0;
 	
-		//create the directory, return 11 - Success
-		Files.createDirectories(Paths.get(sourcePath + src + dirname));	 
-		return 11;
+		try {
+			fileLock.acquireWriteLock(src);
+			Files.createDirectories(Paths.get(sourcePath + src + dirname));	 
+			return 11;
+		} catch (InterruptedException e) {
+			System.out.println("createdir - failed to acquire write lock on " + src);
+			e.printStackTrace();
+		} finally{
+			try {
+				fileLock.releaseWriteLock(src);
+			} catch (InterruptedException e) {
+				System.out.println("createdir - failed to release write lock on " + dirname);
+				e.printStackTrace();
+			}
+		}
+		
+		return 12;
 	}
 
 	/**
 	 * Deletes the specified dirname in the src directory
+	 * Acquires write lock on dir
 	 * Returns SrcDirNotExistent if the src directory does not exist - 2
 	 * Returns DirNotEmpty if directory is not empty - 1
 	 * Returns Success if deletion succeeds - 11
-	 * Returns Fail if deletion fails - 12
 	 */
 	public int DeleteDir(String dirname) {
 		if(!DirExists(sourcePath + dirname)) return 2;
 		
 		// check if it's empty
-		File dir = new File(sourcePath + dirname);
-		String[] files = dir.list();
-		if(files.length != 0) return 1;
-				 
-		dir.delete();
-		return 3;
+		try {
+			fileLock.acquireWriteLock(dirname);
+			File dir = new File(sourcePath + dirname);
+			String[] files = dir.list();
+			if(files.length != 0) {
+				fileLock.releaseWriteLock(dirname);
+				return 1;
+			}
+			dir.delete();		
+			fileLock.deleteLock(dirname);
+			return 11;
+		} catch (InterruptedException e) {
+			System.out.println("deletedir - failed to acquire write lock on " + dirname);
+			e.printStackTrace();
+		} 
+		return 12;
 	}
 
 	/**
 	 * Renames the specified src directory in the specified path to NewName
+	 * Acquires write lock on dir
 	 * Returns SrcDirNotExistent if the src directory does not exist - 2
 	 * Returns DestDirExists if a directory with NewName exists in the specified path - 3
 	 * Returns Success if rename succeeds - 11
+	 * 
+	 * MUST ALSO CHANGE FILEDIRLOCK and FILESTOCHUNKS MODIFYING ALL THE INSIDE FILES 
 	 */
 	public int RenameDir(String src, String NewName) {
 		if(!DirExists(sourcePath + src)) return 2;
 		if(DirExists(sourcePath + src + NewName)) return 3;
-		//rename directory
-		File NewDir= new File(sourcePath + NewName);
-		File OldDir = new File(sourcePath + src);
-		OldDir.renameTo(NewDir);		
-
-		return 11;
+	
+		try {
+			fileLock.acquireWriteLock(src);
+			fileLock.renameLock(src, NewName);
+			renameFilesToChunks(src, NewName);
+			//rename directory
+			File NewDir= new File(sourcePath + NewName);
+			File OldDir = new File(sourcePath + src);
+			OldDir.renameTo(NewDir);	
+			fileLock.releaseWriteLock(NewName);
+			return 11;
+		} catch (InterruptedException e) {
+			System.out.println("renamedir - failed to acquire write lock on " + src);
+			e.printStackTrace();
+		} 
+		return 12;
 	}
 
 	/**
 	 * Lists the content of the target directory 
+	 * Acquires read lock on dir
 	 * Returns a String array of the names of contents
 	 * Returns null if the target directory is empty or directory doesn't exist
 	 */
 	public ArrayList<String> ListDir(String tgt) {
-		//get the target folder
-		File Directory = new File("source" + tgt);
-		String [] contents = Directory.list();
 		ArrayList<String> concat = new ArrayList<String>();
-		for(int a = 0; a < contents.length; a++){
-			if(Files.isDirectory(Paths.get("source" + tgt + "/" + contents[a]))){
-				concat.addAll(ListDir(tgt + "/" + contents[a]));
+		try {
+			fileLock.acquireReadLock(tgt);
+			File Directory = new File("source" + tgt);
+			String [] contents = Directory.list();
+			for(int a = 0; a < contents.length; a++){
+				if(Files.isDirectory(Paths.get("source" + tgt + "/" + contents[a]))){
+					concat.addAll(ListDir(tgt + "/" + contents[a]));
+				}
+				concat.add(tgt + "/" + contents[a]);
 			}
-			concat.add(tgt + "/" + contents[a]);
-		}
+			fileLock.releaseReadLock(tgt);
+		} catch (InterruptedException e) {
+			System.out.println("listdir - failed to acquire read lock on " + tgt);
+			e.printStackTrace();
+		} 
 		return concat;
 	}
 	
 	/**
 	 * Creates the specified filename in the target directory 
+	 * Acquires write lock on dir
 	 * Returns SrcDirNotExistent if the target directory does not exist - 2
 	 * Returns FileExists if file with name already exists - 4
 	 * Returns success if creation succeeds - 11
@@ -306,21 +357,29 @@ public class Master {
 		if(!DirExists(sourcePath + tgtdir)) return 2;
 
 		File file = new File(sourcePath + tgtdir + filename);
-
-	    try {
-			if (file.createNewFile()){
-				filesToChunks.put(tgtdir+filename, new Vector<String>());
-			    return 11;
-			}
-		} catch (IOException e) {
-			System.out.println("Error creating file: " + sourcePath + tgtdir + filename);
+		try {
+			fileLock.acquireWriteLock(tgtdir);
+		    try {
+				if (file.createNewFile()){
+					filesToChunks.put(tgtdir+filename, new Vector<String>());
+				}
+			} catch (IOException e) {
+				System.out.println("Error creating file: " + sourcePath + tgtdir + filename);
+				e.printStackTrace();
+			}	
+		    fileLock.releaseWriteLock(tgtdir);
+		    return 11;
+		} catch (InterruptedException e) {
+			System.out.println("createfile - failed to acquire write lock on " + tgtdir);
 			e.printStackTrace();
-		}
+		} 
+
 		return 4;
 	}
 	
 	/**
 	 * Deletes the specified filename from the tgtdir 
+	 * Acquires write lock on file
 	 * Returns SrcDirNotExistent if the target directory does not exist - 2
 	 * Returns FileDoesNotExist if the specified filename is not-existent - 5
 	 * Returns success if deletion succeeds - 11
@@ -331,14 +390,71 @@ public class Master {
 		if(!DirExists(sourcePath + tgtdir)) return 2;
 		if(!FileExists(sourcePath + tgtdir + filename))
 			return 5;
+
 		try {
-			Files.delete(Paths.get(sourcePath + tgtdir + filename));
-		} catch (IOException e) {
-			System.out.println("Error deleting file: " + sourcePath + tgtdir + filename);
+			fileLock.acquireWriteLock(tgtdir);
+			try {
+				Files.delete(Paths.get(sourcePath + tgtdir + filename));
+				filesToChunks.remove(tgtdir + filename);
+			} catch (IOException e) {
+				System.out.println("Error deleting file: " + sourcePath + tgtdir + filename);
+				e.printStackTrace();
+			}		
+			fileLock.deleteLock(tgtdir);
+			return 11;
+		} catch (InterruptedException e) {
+			System.out.println("deletefile - failed to acquire write lock on " + tgtdir);
 			e.printStackTrace();
-		}
-		return 11;
+		} 
+		return 12;
 	}
+
+	/**
+	 * Opens the file specified by the FilePath 
+	 * Acquires write lock on file
+	 * Returns FileDoesNotExist if the specified filename by FilePath is not-existent - 5
+	 * Returns Success if successfully opened - 11
+	 *
+	 * Example usage: OpenFile("/Shahram/CSCI485/Lecture1/Intro.pptx", FH1)
+	 */
+	public int OpenFile(String FilePath){
+		if(!FileExists(sourcePath + FilePath))
+			return 5;
+		
+		try {
+			fileLock.acquireWriteLock(FilePath);
+			return 11;
+		} catch (InterruptedException e) {
+			System.out.println("openfile - failed to acquire write lock on " + FilePath);
+			e.printStackTrace();
+		} 
+		
+		return 12;
+	}
+	
+	/**
+	 * Closes the specified file handle 
+	 * Releases write lock on file
+	 * Returns BadHandle if ofh is invalid - 6
+	 * Returns Success if successfully closed - 11
+	 *
+	 */
+	public int CloseFile(String FilePath) {
+		if(!FileExists(sourcePath + FilePath))
+			return 6;
+		
+		try {
+			fileLock.releaseWriteLock(FilePath);
+			return 11;
+		} catch (InterruptedException e) {
+			System.out.println("openfile - failed to acquire write lock on " + FilePath);
+			e.printStackTrace();
+		} 
+		
+		return 12;
+		
+	}
+
 	
 	public boolean DirExists(String name){
 		return Files.exists(Paths.get(name)) && Files.isDirectory(Paths.get(name)); 	
@@ -407,15 +523,32 @@ public class Master {
 		return chunkHandle;
 	}
 	
-	private static String formatChunkNum(){
+	private String formatChunkNum(){
 		DecimalFormat myFormatter = new DecimalFormat("000000");
-		
 		return myFormatter.format(chunkNum);
 	}
 	
-	private static String formatNumRecs(int numRecords){
+	private String formatNumRecs(int numRecords){
 		DecimalFormat myFormatter = new DecimalFormat("0000");
 		return myFormatter.format(numRecords);
+	}
+	
+	public Vector<String> getChunkHandles(String file) {
+		if(filesToChunks.get(file) != null)
+			return filesToChunks.get(file);
+		return new Vector<String>();
+	}
+	
+	private void renameFilesToChunks(String src, String newName) {
+		Vector<String> children = fileLock.getChildren(src);
+		for(int a = 0 ; a < children.size(); a++){
+			if(!Files.isDirectory(Paths.get(sourcePath + children.get(a)))){
+				String name = children.get(a);
+				name.replace(src, newName);
+				filesToChunks.put(name, filesToChunks.get(src));
+				filesToChunks.remove(src);
+			}
+		}
 	}
 	
 	//CLEANUP SOURCE DIRECTORY BEFORE UNIT TESTS
@@ -434,13 +567,6 @@ public class Master {
 	        }
 	    }
 	    return(directory.delete());
-	}
-
-	
-	public Vector<String> getChunkHandles(String file) {
-		if(filesToChunks.get(file) != null)
-			return filesToChunks.get(file);
-		return new Vector<String>();
 	}
 	
 }
