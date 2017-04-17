@@ -53,6 +53,9 @@ public class RID{
 		startup('!',null,-1);
 		valid = false;
 	}
+	public String inChunk(){
+		return chunkServerLabel+chunk;
+	}
 	public String toString(){
 		String offsetStr = String.format(offsetFormat,offset);
 		return chunkServerLabel+chunk+":"+offsetStr;
@@ -82,3 +85,4 @@ public class RID{
 	public RID getNext(){ return next;}
 	public RID getPrior(){ return prior;}
 }
+
