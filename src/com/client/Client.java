@@ -27,32 +27,62 @@ import com.master.Master;
 public class Client implements ClientInterface {
 	//client chunkserver
 	private static int csPort = 2222;
-	private static String csHostName = "localhost";
 	static Socket clientCSConn;
-	protected DataOutputStream csDos;
-	protected DataInputStream csDin;
+	protected static DataOutputStream csDos;
+	protected static DataInputStream csDin;
+	protected static ChunkServerPointer[] allChunkServers;
 	
 	//client master connections
 	static Socket clientMasterConn;
 	private int masterPort = 9999;
 	private static String masterHostName = "localhost";
-	protected DataInputStream masterDin;
-	protected DataOutputStream masterDos;
+	protected static DataInputStream masterDin;
+	protected static DataOutputStream masterDos;
 	
 	public Client(){
-		if ((clientCSConn != null) && (clientMasterConn != null)) return;
+		if ((clientCSConn != null) && (clientMasterConn != null)){
+			//System.out.println("Already initialized");
+			return;
+		}
 		try {
 			clientMasterConn = new Socket(masterHostName, masterPort);
 			masterDos = new DataOutputStream(clientMasterConn.getOutputStream());
 			masterDin = new DataInputStream(clientMasterConn.getInputStream());
-			System.out.println(masterDin.readUTF());
-			clientCSConn = new Socket(csHostName, csPort);
-			csDos = new DataOutputStream(clientCSConn.getOutputStream());
-			csDin = new DataInputStream(clientCSConn.getInputStream());
+			
+			allChunkServers = new ChunkServerPointer[52];
+			//"localhost"
+			//68.181.174.43
+			String[] csHostNames = {"128.125.221.230","68.181.174.43"};
+			for (int i = 0; i < csHostNames.length; i++){
+				String curHostName = csHostNames[i];
+				System.out.println("Booting "+curHostName);
+				ChunkServerPointer nextChunkServer = new ChunkServerPointer(curHostName,csPort);
+				allChunkServers[i] = nextChunkServer;
+				if (nextChunkServer.isConnected){
+					if (clientCSConn == null){
+						useCSPointer(nextChunkServer);
+					}
+				}				
+			}
+			System.out.println("Done booting");
 			
 		} catch (IOException e) {
 			e.printStackTrace();
 		} 
+	}
+	private boolean useCSPointer(ChunkServerPointer csp){
+		if (csp.isConnected){
+			csDos = csp.csDos;
+			csDin = csp.csDin;
+			clientCSConn = csp.mySocket;
+			return true;
+		}
+		return false;
+	}
+	private boolean switchChunkServers(char id){
+		int csIndex = ChunkServerPointer.charToInt(id);
+		ChunkServerPointer useThis = allChunkServers[csIndex];
+		return useCSPointer(useThis);
 	}
 	
 	
@@ -61,6 +91,7 @@ public class Client implements ClientInterface {
 	 * read and return chunk handle
 	 */
 	public String createChunk() {
+		//NEEDS TO TALK TO MASTER TO GET THE NAME OF THE NEXT CHUNK HANDLE
 		try {
 			csDos.writeInt(ChunkServer.CreateChunkCMD);
 			csDos.flush();
@@ -77,13 +108,15 @@ public class Client implements ClientInterface {
 	 * read and return the boolean sent back
 	 */
 	public boolean writeChunk(String ChunkHandle, byte[] payload, int offset) {
+		switchChunkServers(ChunkHandle.charAt(0));
+		String chunkID = ChunkHandle.substring(1);
 		if(offset + payload.length > ChunkServer.ChunkSize) {
 			System.out.println("The chunk write should be within the range of the file, invalid chunk write!");
 			return false;
 		}
 		try {
 			csDos.writeInt(ChunkServer.WriteChunkCMD);
-			csDos.writeUTF(ChunkHandle);
+			csDos.writeUTF(chunkID);
 			csDos.writeInt(payload.length);
 			csDos.write(payload);
 			csDos.writeInt(offset);
@@ -100,13 +133,15 @@ public class Client implements ClientInterface {
 	 * read the response into a byte array
 	 */
 	public byte[] readChunk(String ChunkHandle, int offset, int NumberOfBytes) {
+		switchChunkServers(ChunkHandle.charAt(0));
+		String chunkID = ChunkHandle.substring(1);
 		if(NumberOfBytes + offset > ChunkServer.ChunkSize) {
 			System.out.println("The chunk read should be within the range of the file, invalid chunk read!");
 			return null;
 		}
 		try {
 			csDos.writeInt(ChunkServer.ReadChunkCMD);
-			csDos.writeUTF(ChunkHandle);
+			csDos.writeUTF(chunkID);
 			csDos.writeInt(offset); 
 			csDos.writeInt(NumberOfBytes); 
 			csDos.flush();
