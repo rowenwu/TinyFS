@@ -14,6 +14,7 @@ import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.Selector;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -29,7 +30,8 @@ import com.client.ClientFS.FSReturnVals;
 
 
 public class Master {
-	private static int port = 9999;
+	private static int clientPort = 9999;
+	private static int chunkserverPort = 9998;
 	public Hashtable<String, Vector<String>> filesToChunks;
 	public static Hashtable<String, Integer> numChunkRecords;
 	private static int chunkNum; 
@@ -70,29 +72,96 @@ public class Master {
 		else {
 			filesToChunks = mapFilesToChunks("");
 		}
-
-		ServerSocket commChannel = null;
+		new ClientSocket().run();
+		new ChunkServerSocket().run();
+	}
+	
+	class ChunkServerSocket extends Thread{
+		private ServerSocket commChannel;
+		public ConnectionThread[] connectionArray= new ConnectionThread[52];
 		
-		// listen for incoming client connections
-		try {
-			commChannel = new ServerSocket(port);
-			System.out.println("listening...");
-			while (true) {
-				new ConnectionThread(commChannel.accept()).start();
-			}
-		} catch (IOException e) {
-			System.out.println("Error establishing client connection");
-			e.printStackTrace();
-		} finally {
+		//listen for incoming chunkserver connections
+		public void run(){
 			try {
-				commChannel.close();
+				commChannel = new ServerSocket(chunkserverPort);
+				System.out.println("listening for chunkservers...");
+				while (true) {
+					ConnectionThread ct = new ConnectionThread(commChannel.accept());
+					ct.start();
+					System.out.println("Connected a chunkserver.");
+					//store ConnectionThread in non-null index of connectionArray
+					for(int i=0; i<52; i++){
+						if(connectionArray[i]!=null){
+							connectionArray[i]=ct;
+							break;
+						}
+					}
+					
+				}
 			} catch (IOException e) {
-				System.out.println("Error closing server socket");
+				System.out.println("Error establishing chunkserver connection");
 				e.printStackTrace();
+			} finally {
+				try {
+					commChannel.close();
+				} catch (IOException e) {
+					System.out.println("Error closing shunkserver socket");
+					e.printStackTrace();
+				}
 			}
 		}
 		
+		//removes dead chunkservers from connectionArray
+		public void refreshConnections(){
+			for(int i=0; i<52; i++){
+				if(connectionArray[i]!=null){
+					//set dead chunkservers to null
+					if(!connectionArray[i].isAlive()){
+						connectionArray[i]=null;
+					}
+				}
+			}
+		}
 		
+		//gets IP addresses of living chunkservers
+		public Vector<String> getLivingChunkservers(){
+			//removes dead chunkservers
+			refreshConnections();
+			Vector<String> livingChunkServers=new Vector<String>();
+			for(int i=0; i<52; i++){
+				if(connectionArray[i]!=null){
+					//get IP addresses of living chunkservers
+					livingChunkServers.add(connectionArray[i].socket.getRemoteSocketAddress().toString());
+				}
+			}
+			return livingChunkServers;
+		}
+	}
+	
+	class ClientSocket extends Thread {
+		private ServerSocket commChannel;
+		
+		// listen for incoming client connections
+		public void run(){
+			try {
+				commChannel = new ServerSocket(clientPort);
+				System.out.println("listening for clients...");
+				while (true) {
+					new ConnectionThread(commChannel.accept()).start();
+					System.out.println("Connected a client.");
+				}
+			} catch (IOException e) {
+				System.out.println("Error establishing client connection");
+				e.printStackTrace();
+			} finally {
+				try {
+					commChannel.close();
+				} catch (IOException e) {
+					System.out.println("Error closing server socket");
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 	
 	class ConnectionThread extends Thread {
