@@ -29,13 +29,18 @@ public class FileHandle {
 		filePath = path;
 		chunkIndex = 0;
 		fileChunks = new Vector<String>();
-		System.out.println("Ready to read chunk handles from path "+path);
-		fileChunks.copyInto(client.getChunkHandles(path));
-		System.out.println(fileChunks.size()+" chunks in file");
+		//System.out.println("Ready to read chunk handles from path "+path);
+		String[] chunkHandlesReturned = client.getChunkHandles(path);
+		//System.out.println(chunkHandlesReturned.length+" chunks were returned");
+		for (int i = 0; i < chunkHandlesReturned.length; i++){
+			//System.out.println("Has chunk "+chunkHandlesReturned[i]);
+			fileChunks.add(chunkHandlesReturned[i]);
+		}
+		//fileChunks.copyInto(chunkHandlesReturned);
+		//System.out.println(fileChunks.size()+" chunks in file");
 		if (fileChunks == null){
 			return false;
 		}
-		System.out.println("Ready to change chunk");
 		return changeChunk(fileChunks.get(chunkIndex));
 	}
 	public boolean noChunk(){
@@ -70,7 +75,8 @@ public class FileHandle {
 		int byteCount = bytesPerIDTag * chunkNumRecords;
 		int mdOffset = chunkSize - byteCount;
 		chunkBytesUsed = 0;
-		byte[] metadata = client.readChunk(currentChunkHandle.substring(1), mdOffset, byteCount);
+		//XXX
+		byte[] metadata = client.readChunk(currentChunkHandle, mdOffset, byteCount);
 		if (metadata == null){
 			return false;
 		}
@@ -87,7 +93,7 @@ public class FileHandle {
 			}
 			before = r;
 			chunkBytesUsed+=r.length;
-			System.out.println("\t"+r);
+			//System.out.println("\t"+r);
 		}
 		r.prior = null;
 		chunkFirstRID = r;
@@ -118,12 +124,12 @@ public class FileHandle {
 		System.out.println("Write ID tags failed");
 		return ClientFS.FSReturnVals.Fail;
 	}
-	public String newChunk(){
+	public String newChunk(char csId){
 		String newChunk = client.createChunk();
 		if (newChunk == null){ return null;}
 		//We need to put in code that determines which ChunkServer and which one-letter prefix goes here
 		//Right now it is hard-coded to "A"
-		currentChunkHandle = "A"+newChunk;
+		currentChunkHandle = csId+newChunk;
 		lastChunkHandle = currentChunkHandle;
 		chunkBytesUsed = 0;
 		chunkNumRecords = 0;
@@ -131,6 +137,7 @@ public class FileHandle {
 		chunkLastRID = null;
 		pointsToLast = true;
 		fileChunks.add(currentChunkHandle);
+		System.out.println("We have "+fileChunks.size()+" chunks");
 		return currentChunkHandle;
 	}
 	public int getRecordSize(RID r){
@@ -154,12 +161,14 @@ public class FileHandle {
 		return chunkSize - chunkBytesUsed + bytesPerIDTag * chunkNumRecords;
 	}
 	public boolean changeChunk(String c){
-		currentChunkHandle = c;
 		if (c!= null){
-			loadNumberOfRecordsInChunk();
-			loadChunkRecordTags();
+			if (!c.equals(currentChunkHandle)){
+				currentChunkHandle = c;
+				loadNumberOfRecordsInChunk();
+				loadChunkRecordTags();
+			}
 		}
-		pointsToLast = (currentChunkHandle == lastChunkHandle);
+		pointsToLast = (currentChunkHandle.equals(lastChunkHandle));
 		return true;
 	}
 	public int getNumberOfRecordsInChunk(){
@@ -321,6 +330,4 @@ public class FileHandle {
 	public void setFilePath(String filePath){
 		this.filePath = filePath;
 	}
-
-
 }
