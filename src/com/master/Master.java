@@ -118,6 +118,7 @@ public class Master {
 			} finally {
 				try {
 					csCommChannel.close();
+
 				} catch (IOException e) {
 					System.out.println("Error closing shunkserver socket");
 					e.printStackTrace();
