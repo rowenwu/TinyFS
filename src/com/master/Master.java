@@ -37,7 +37,14 @@ public class Master {
 	private static int chunkNum; 
 	private static final String sourcePath = "source";	
 	
+	private ServerSocket csCommChannel;
+	private ServerSocket clientCommChannel;
+	
+	//connections to chunkservers
+	public static ChunkserverConnectionThread[] connectionArray;
+	
 	public static void main(String[] args){	
+		connectionArray= new ChunkserverConnectionThread[52];
 		new Master();
 	}
 	
@@ -72,21 +79,28 @@ public class Master {
 		else {
 			filesToChunks = mapFilesToChunks("");
 		}
-		new ClientSocket().run();
-		new ChunkServerSocket().run();
+		//open ports for chunkserver and client
+		try {
+			csCommChannel = new ServerSocket(chunkserverPort);
+			clientCommChannel = new ServerSocket(clientPort);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		new ClientSocket().start();
+		new ChunkServerSocket().start();
 	}
 	
+	//perpetually listens for chunkserver connections
 	class ChunkServerSocket extends Thread{
-		private ServerSocket commChannel;
-		public ConnectionThread[] connectionArray= new ConnectionThread[52];
 		
 		//listen for incoming chunkserver connections
 		public void run(){
 			try {
-				commChannel = new ServerSocket(chunkserverPort);
 				System.out.println("listening for chunkservers...");
 				while (true) {
-					ConnectionThread ct = new ConnectionThread(commChannel.accept());
+					ChunkserverConnectionThread ct = new ChunkserverConnectionThread(csCommChannel.accept());
 					ct.start();
 					System.out.println("Connected a chunkserver.");
 					//store ConnectionThread in non-null index of connectionArray
@@ -103,51 +117,26 @@ public class Master {
 				e.printStackTrace();
 			} finally {
 				try {
-					commChannel.close();
+					csCommChannel.close();
+
 				} catch (IOException e) {
 					System.out.println("Error closing shunkserver socket");
 					e.printStackTrace();
 				}
 			}
 		}
-		
-		//removes dead chunkservers from connectionArray
-		public void refreshConnections(){
-			for(int i=0; i<52; i++){
-				if(connectionArray[i]!=null){
-					//set dead chunkservers to null
-					if(!connectionArray[i].isAlive()){
-						connectionArray[i]=null;
-					}
-				}
-			}
-		}
-		
-		//gets IP addresses of living chunkservers
-		public Vector<String> getLivingChunkservers(){
-			//removes dead chunkservers
-			refreshConnections();
-			Vector<String> livingChunkServers=new Vector<String>();
-			for(int i=0; i<52; i++){
-				if(connectionArray[i]!=null){
-					//get IP addresses of living chunkservers
-					livingChunkServers.add(connectionArray[i].socket.getRemoteSocketAddress().toString());
-				}
-			}
-			return livingChunkServers;
-		}
 	}
 	
+	//perpetually listens for client connections
 	class ClientSocket extends Thread {
-		private ServerSocket commChannel;
 		
 		// listen for incoming client connections
 		public void run(){
 			try {
-				commChannel = new ServerSocket(clientPort);
 				System.out.println("listening for clients...");
 				while (true) {
-					new ConnectionThread(commChannel.accept()).start();
+					ClientConnectionThread ct = new ClientConnectionThread(clientCommChannel.accept());
+					ct.start();
 					System.out.println("Connected a client.");
 				}
 			} catch (IOException e) {
@@ -155,19 +144,19 @@ public class Master {
 				e.printStackTrace();
 			} finally {
 				try {
-					commChannel.close();
+					clientCommChannel.close();
 				} catch (IOException e) {
 					System.out.println("Error closing server socket");
 					e.printStackTrace();
 				}
 			}
 		}
-	}
+	} 
 	
-	class ConnectionThread extends Thread {
+	class ClientConnectionThread extends Thread {
 		private Socket socket;
 
-		public ConnectionThread(Socket socket) {
+		public ClientConnectionThread(Socket socket) {
 			this.socket = socket;
 		}
 
@@ -175,6 +164,17 @@ public class Master {
 			try {
 				DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
 				DataInputStream din = new DataInputStream(socket.getInputStream());
+				
+				//send available chunkservers to client
+				Vector<String> livingChunkservers = getLivingChunkservers();
+				String chunkserverString="";
+				for(int i=0; i<livingChunkservers.size(); i++){
+					chunkserverString+=livingChunkservers.elementAt(i);
+					if(i!=livingChunkservers.size()-1){
+						chunkserverString+=" ";
+					}
+				}
+				dos.writeUTF(chunkserverString);
 				
 				while(true){
 					dos.flush();
@@ -258,6 +258,71 @@ public class Master {
 		}
 	}
 	
+	class ChunkserverConnectionThread extends Thread {
+		private Socket socket;
+
+		public ChunkserverConnectionThread(Socket socket) {
+			this.socket = socket;
+		}
+
+		public void run(){
+			try {
+				DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+				DataInputStream din = new DataInputStream(socket.getInputStream());
+				
+				while(true){
+					dos.flush();
+					while(true){
+						int CMD = din.readInt();
+						switch (CMD){
+						case CreateDirCMD:
+							dos.writeInt(CreateDir(din.readUTF(), din.readUTF()));
+							dos.flush();
+							break;					
+						default:
+							System.out.println("Error in Master, specified CMD "+CMD+" is not recognized.");
+							break;	
+						}
+					}
+				}
+			} catch (IOException e) {
+				System.out.println("Chunkserver connection closed");
+			} finally {
+				try {
+					socket.close();
+				} catch (IOException e) {
+					System.out.println("Error closing server socket");
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
+	//removes dead chunkservers from connectionArray
+	public void refreshConnections(){
+		for(int i=0; i<52; i++){
+			if(connectionArray[i]!=null){
+				//set dead chunkservers to null
+				if(!connectionArray[i].isAlive()){
+					connectionArray[i]=null;
+				}
+			}
+		}
+	}
+
+	//gets IP addresses of living chunkservers
+	public Vector<String> getLivingChunkservers(){
+		//removes dead chunkservers
+		refreshConnections();
+		Vector<String> livingChunkServers=new Vector<String>();
+		for(int i=0; i<52; i++){
+			if(connectionArray[i]!=null){
+				//get IP addresses of living chunkservers
+				livingChunkServers.add(connectionArray[i].socket.getRemoteSocketAddress().toString());
+			}
+		}
+		return livingChunkServers;
+	}
 	// recursively enter each directory and each file where chunkhandles are stored
 	private Hashtable<String, Vector<String>> mapFilesToChunks(String directory){
 		File Directory = new File("source" + directory);
