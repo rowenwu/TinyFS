@@ -52,7 +52,12 @@ public class Client implements ClientInterface {
 			allChunkServers = new ChunkServerPointer[52];
 			//"localhost"
 			//68.181.174.43
-			String[] csHostNames = {"128.125.221.230","68.181.174.43"};
+			
+			//get chunkserver host names from master and parse
+			String chunkserverNames = masterDin.readUTF();
+			String[] csHostNames = chunkserverNames.split(" ");
+			//String[] csHostNames = {"128.125.221.230","68.181.174.43"};
+			
 			for (int i = 0; i < csHostNames.length; i++){
 				String curHostName = csHostNames[i];
 				System.out.println("Booting "+curHostName);
