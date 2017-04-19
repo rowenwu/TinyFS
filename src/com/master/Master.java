@@ -202,18 +202,40 @@ public class Master {
 							String target = din.readUTF();
 							if(!DirExists(sourcePath + target)){
 								dos.writeInt(-1);
+								dos.flush();
+								break;
 							}
-							ArrayList<String> files = ListDir(target);
-							// send -1 to client if null
-							if(files == null) 
-								dos.writeInt(-1);
-							else {
-								dos.writeInt(files.size());
-								for(int i = 0; i < files.size(); i++){
-									dos.writeUTF(files.get(i));
+							try {
+								fileLock.acquireReadLock(target);
+								if(!DirExists(sourcePath + target)){
+									dos.writeInt(-1);
+									dos.flush();
+									break;
 								}
+								if(!DirExists(sourcePath + target)){
+									dos.writeInt(-1);
+									dos.flush();
+									break;
+								}
+								ArrayList<String> files = ListDir(target);
+								// send -1 to client if null
+								if(files == null){ 
+									dos.writeInt(-1);
+									dos.flush();
+									break;
+								}
+								else {
+									dos.writeInt(files.size());
+									for(int i = 0; i < files.size(); i++){
+										dos.writeUTF(files.get(i));
+									}
+								}
+								dos.flush();
+								fileLock.releaseReadLock(target);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
 							}
-							dos.flush();
 							break;
 						case CreateFileCMD:
 							dos.writeInt(CreateFile(din.readUTF(), din.readUTF()));
@@ -378,19 +400,23 @@ public class Master {
 	
 		try {
 			fileLock.acquireWriteLock(src);
-			Files.createDirectories(Paths.get(sourcePath + src + dirname));	 
+			if(!DirExists(sourcePath + src)){
+				fileLock.releaseWriteLock(src);
+
+				return 2;
+			}
+			if(DirExists(sourcePath + src + dirname)){
+				fileLock.releaseWriteLock(src);
+				return 0;
+			}
+			Files.createDirectories(Paths.get(sourcePath + src + dirname));	
+			fileLock.createLock(src + dirname);
+			fileLock.releaseWriteLock(src);
 			return 11;
 		} catch (InterruptedException e) {
 			System.out.println("createdir - failed to acquire write lock on " + src);
 			e.printStackTrace();
-		} finally{
-			try {
-				fileLock.releaseWriteLock(src);
-			} catch (InterruptedException e) {
-				System.out.println("createdir - failed to release write lock on " + dirname);
-				e.printStackTrace();
-			}
-		}
+		} 
 		
 		return 12;
 	}
@@ -408,6 +434,11 @@ public class Master {
 		// check if it's empty
 		try {
 			fileLock.acquireWriteLock(dirname);
+			if(!DirExists(sourcePath + dirname)) {
+				fileLock.releaseWriteLock(dirname);
+				return 2;
+			}
+
 			File dir = new File(sourcePath + dirname);
 			String[] files = dir.list();
 			if(files.length != 0) {
@@ -415,7 +446,7 @@ public class Master {
 				return 1;
 			}
 			dir.delete();		
-			fileLock.deleteLock(dirname);
+			fileLock.releaseWriteLock(dirname);
 			return 11;
 		} catch (InterruptedException e) {
 			System.out.println("deletedir - failed to acquire write lock on " + dirname);
@@ -439,6 +470,15 @@ public class Master {
 	
 		try {
 			fileLock.acquireWriteLock(src);
+			if(!DirExists(sourcePath + src)){
+				fileLock.releaseWriteLock(src);
+
+				return 2;
+			}
+			if(DirExists(sourcePath + src + NewName)){
+				fileLock.releaseWriteLock(src);
+				return 3;
+			}
 			fileLock.renameLock(src, NewName);
 			renameFilesToChunks(src, NewName);
 			//rename directory
@@ -462,21 +502,14 @@ public class Master {
 	 */
 	public ArrayList<String> ListDir(String tgt) {
 		ArrayList<String> concat = new ArrayList<String>();
-		try {
-			fileLock.acquireReadLock(tgt);
-			File Directory = new File("source" + tgt);
-			String [] contents = Directory.list();
-			for(int a = 0; a < contents.length; a++){
-				if(Files.isDirectory(Paths.get("source" + tgt + "/" + contents[a]))){
-					concat.addAll(ListDir(tgt + "/" + contents[a]));
-				}
-				concat.add(tgt + "/" + contents[a]);
+		File Directory = new File("source" + tgt);
+		String [] contents = Directory.list();
+		for(int a = 0; a < contents.length; a++){
+			if(Files.isDirectory(Paths.get("source" + tgt + "/" + contents[a]))){
+				concat.addAll(ListDir(tgt + "/" + contents[a]));
 			}
-			fileLock.releaseReadLock(tgt);
-		} catch (InterruptedException e) {
-			System.out.println("listdir - failed to acquire read lock on " + tgt);
-			e.printStackTrace();
-		} 
+			concat.add(tgt + "/" + contents[a]);
+		}
 		return concat;
 	}
 	
@@ -493,9 +526,15 @@ public class Master {
 		File file = new File(sourcePath + tgtdir + filename);
 		try {
 			fileLock.acquireWriteLock(tgtdir);
+			if(!DirExists(sourcePath + tgtdir)) {
+			    fileLock.releaseWriteLock(tgtdir);
+				return 2;
+			}
+
 		    try {
 				if (file.createNewFile()){
 					filesToChunks.put(tgtdir+filename, new Vector<String>());
+					fileLock.createLock(tgtdir + filename);
 				}
 			} catch (IOException e) {
 				System.out.println("Error creating file: " + sourcePath + tgtdir + filename);
@@ -527,6 +566,14 @@ public class Master {
 
 		try {
 			fileLock.acquireWriteLock(tgtdir);
+			if(!DirExists(sourcePath + tgtdir)) {
+				fileLock.releaseWriteLock(tgtdir);
+				return 2;
+			}
+			if(!FileExists(sourcePath + tgtdir + filename)){
+				fileLock.releaseWriteLock(tgtdir);
+				return 5;
+			}
 			try {
 				Files.delete(Paths.get(sourcePath + tgtdir + filename));
 				filesToChunks.remove(tgtdir + filename);
@@ -534,7 +581,7 @@ public class Master {
 				System.out.println("Error deleting file: " + sourcePath + tgtdir + filename);
 				e.printStackTrace();
 			}		
-			fileLock.deleteLock(tgtdir);
+			fileLock.releaseWriteLock(tgtdir);
 			return 11;
 		} catch (InterruptedException e) {
 			System.out.println("deletefile - failed to acquire write lock on " + tgtdir);
@@ -557,6 +604,10 @@ public class Master {
 		
 		try {
 			fileLock.acquireWriteLock(FilePath);
+			if(!FileExists(sourcePath + FilePath)){
+				fileLock.releaseWriteLock(FilePath);
+				return 5;
+			}
 			return 11;
 		} catch (InterruptedException e) {
 			System.out.println("openfile - failed to acquire write lock on " + FilePath);

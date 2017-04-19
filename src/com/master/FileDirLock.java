@@ -12,6 +12,7 @@ public class FileDirLock {
 	
 	public FileDirLock(){
 		locks = getFilesDirs("");
+		locks.put("/", new ReadWriteLock());
 	}
 
 	// map all files/dirs to value 0 originally
@@ -31,23 +32,19 @@ public class FileDirLock {
 		Vector<String> dirs = getParentDirs(path);
 		for(int a = 0; a < dirs.size()-1; a++){
 			locks.get(dirs.get(a)).lockIntentRead();
-			System.out.println("intent read lock: " + dirs.get(a));
+//			System.out.println("intent read lock: " + dirs.get(a));
 		}
-		locks.get(path).lockRead();
+		locks.get(dirs.get(dirs.size()-1)).lockRead();
 	}
 	
 	public void acquireWriteLock(String path) throws InterruptedException{
 		Vector<String> dirs = getParentDirs(path);
 		for(int a = 0; a < dirs.size()-1; a++){
 			locks.get(dirs.get(a)).lockIntentWrite();
-			System.out.println("intent write lock: " + dirs.get(a));
+//			System.out.println("intent write lock: " + dirs.get(a));
 		}
-		locks.get(path).lockWrite();
-		Vector<String> children = getChildren(path);
-		for(int a = 0; a < children.size()-1; a++){
-			locks.get(children.get(a)).lockWrite();
-			System.out.println("write lock: " + dirs.get(a));
-		}
+//		System.out.println("acquire lock " + dirs.get(dirs.size()-1));
+		locks.get(dirs.get(dirs.size()-1)).lockWrite();
 	}
 	
 	public void releaseReadLock(String path) throws InterruptedException{
@@ -55,7 +52,7 @@ public class FileDirLock {
 		for(int a = 0; a < dirs.size()-1; a++){
 			locks.get(dirs.get(a)).unlockIntentRead();
 		}
-		locks.get(path).unlockRead();
+		locks.get(dirs.get(dirs.size()-1)).unlockRead();
 	}
 	
 	public void releaseWriteLock(String path) throws InterruptedException{
@@ -63,11 +60,8 @@ public class FileDirLock {
 		for(int a = 0; a < dirs.size()-1; a++){
 			locks.get(dirs.get(a)).unlockIntentWrite();
 		}
-		locks.get(path).unlockWrite();
-		Vector<String> children = getChildren(path);
-		for(int a = 0; a < children.size()-1; a++){
-			locks.get(children.get(a)).unlockWrite();
-		}
+//		System.out.println("release lock " + path);
+		locks.get(dirs.get(dirs.size()-1)).unlockWrite();
 	}
 	
 	//returns string vector of parent directory paths
@@ -75,8 +69,9 @@ public class FileDirLock {
 		StringTokenizer st = new StringTokenizer(filePath, "/\\");
 		String partial = "";
 		Vector<String> parents = new Vector<String>();
+		parents.add("/");
 		while(st.hasMoreTokens()){
-			partial += st.nextToken();
+			partial += "/" + st.nextToken();
 			parents.add(partial);
 		}
 		return parents;		
@@ -95,22 +90,20 @@ public class FileDirLock {
 	}
 	
 	public void createLock(String path){
+		if(path.endsWith("/"))
+			path = path.substring(0, path.length()-2);
 		locks.put(path, new ReadWriteLock());
 	}
 
-
-	public void deleteLock(String path){
-		locks.remove(path);
-	}
 	
 	public void renameLock(String src, String newName) {
+		locks.put(newName, locks.get(src));
 		Vector<String> children = getChildren(src);
 		for(int a = 0 ; a < children.size(); a++){
 			if(!Files.isDirectory(Paths.get("source" + children.get(a)))){
 				String name = children.get(a);
 				name.replace(src, newName);
 				locks.put(name, locks.get(src));
-				locks.remove(src);
 			}
 		}
 		
@@ -152,13 +145,10 @@ public class FileDirLock {
 		}
 		
 		public synchronized void lockIntentRead() throws InterruptedException{
-			intentWriteRequests++;
-
-			while(readers > 0 || writers > 0 || writeRequests > 0){
+			while(writers > 0 || writeRequests > 0){
 				wait();
 			}
-			intentWriteRequests--;
-			intentWriters++;
+			intentReaders++;
 		}
 		
 		public synchronized void unlockIntentRead(){
@@ -167,10 +157,13 @@ public class FileDirLock {
 		}
 		
 		public synchronized void lockIntentWrite() throws InterruptedException{
-			while(writers > 0 || writeRequests > 0){
+			intentWriteRequests++;
+
+			while(readers > 0 || writers > 0 || writeRequests > 0){
 				wait();
 			}
-			intentReaders++;
+			intentWriteRequests--;
+			intentWriters++;
 		}
 		
 		public synchronized void unlockIntentWrite(){
