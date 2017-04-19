@@ -11,6 +11,7 @@ import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -29,6 +30,13 @@ import com.interfaces.ChunkServerInterface;
  */
 
 public class ChunkServer implements ChunkServerInterface {
+	//master connection variables
+	static Socket csMasterConn;
+	private static String masterHostName = "localhost";
+	protected static DataInputStream masterDin;
+	protected static DataOutputStream masterDos;
+	private int masterPort = 9998;
+	
 	private static String filePath;	
 	private static int port = 2222;
 	private static ServerSocket ss;
@@ -77,10 +85,23 @@ public class ChunkServer implements ChunkServerInterface {
 			counter = cntrs[cntrs.length - 1];
 		}
 		
+		//connect to the master
+		try {
+			csMasterConn = new Socket(masterHostName, masterPort);
+			masterDos = new DataOutputStream(csMasterConn.getOutputStream());
+			masterDin = new DataInputStream(csMasterConn.getInputStream());
+		} catch (UnknownHostException e1) {
+			e1.printStackTrace();
+			System.out.println("ERROR: CS failed to connect to master");
+		} catch (IOException e1) {
+			e1.printStackTrace();
+			System.out.println("ERROR: CS failed to connect to master");
+		}
+
 		// listen for incoming client connections
 		try {
 			ss = new ServerSocket(port);
-			System.out.println("listening...");
+			System.out.println("listening for client connections...");
 			while (true) {
 				new ChunkServerThread(ss.accept()).start();
 			}
@@ -207,6 +228,7 @@ public class ChunkServer implements ChunkServerInterface {
 
 	public static void main(String args[])
 	{
+		//create a bunch of chunkservers on localhost for testing purposes
 		ChunkServer cs = new ChunkServer();
 	}
 }
