@@ -1,10 +1,12 @@
 package UnitTests3;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 import com.client.ClientFS;
 import com.client.ClientFS.FSReturnVals;
+import com.master.Master;
 import com.client.ClientRec;
 import com.client.FileHandle;
 import com.client.RID;
@@ -21,6 +23,7 @@ public class UnitTest4 {
 	static final String TestName = "Unit Test 4: ";
 	
 	public static void main(String[] args) {
+		Master.UnitTestCLeanUp(new File("source/Shahram"));
 		String dir1 = "Shahram";
 		ClientFS cfs = new ClientFS();
 		FSReturnVals fsrv = cfs.CreateDir("/", dir1);
