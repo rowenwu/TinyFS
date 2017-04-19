@@ -39,14 +39,14 @@ public class ClientRec {
 		RecordID.chunk = chunkName.substring(1);
 		RecordID.valid = true;
 		RecordID.length = payloadSize;
-		boolean writeSuccessful = client.writeChunk(RecordID.chunk, payload,RecordID.offset);
+		boolean writeSuccessful = client.writeChunk(RecordID.inChunk(), payload,RecordID.offset);
 		if (writeSuccessful){
 			//System.out.println(RecordID);
 			byte[] recordTagData = RecordID.makeTag();
 			//RID.printTag(recordTagData);
 			int tagOffset = chunkSize - FileHandle.bytesPerIDTag * (ofh.getNumberOfRecordsInChunk() +1);
 			//System.out.println("Should start writing byte "+tagOffset);
-			boolean tagSuccessful = client.writeChunk(RecordID.chunk, recordTagData,tagOffset);
+			boolean tagSuccessful = client.writeChunk(RecordID.inChunk(), recordTagData,tagOffset);
 			if (tagSuccessful){		
 				ofh.addRecord(RecordID);
 				return ClientFS.FSReturnVals.Success;
@@ -70,7 +70,8 @@ public class ClientRec {
 		if (RecordID == null){
 			return ClientFS.FSReturnVals.RecDoesNotExist;
 		}
-		RID answer;
+		ofh.changeChunk(RecordID.inChunk());
+		
 		if (RecordID.inLinkedList){
 			FSReturnVals suc = ofh.deleteLinkedRecord(RecordID);
 			//System.out.println(ofh.makeRecordsList());
@@ -78,10 +79,8 @@ public class ClientRec {
 		}
 		//System.out.println("Could not find linked data");
 		RID cur = ofh.getChunkFirstRID();
-		int iGivenChunk = Integer.parseInt(RecordID.chunk);
 		while (cur !=null){
-			int iCurChunk = Integer.parseInt(cur.chunk);
-			if((iCurChunk==iGivenChunk) && (cur.offset==RecordID.offset)){
+			if ((cur.offset==RecordID.offset)){
 				break;
 			}
 			cur = cur.next;
@@ -124,7 +123,7 @@ public class ClientRec {
 	private FSReturnVals getRecord(FileHandle ofh, RID r, TinyRec rec){
 		rec.setRID(r);
 		int recordSize = r.length;
-		byte[] recordData = client.readChunk(r.chunk, r.offset, recordSize);
+		byte[] recordData = client.readChunk(r.inChunk(), r.offset, recordSize);
 		if (recordData == null){
 			rec.setPayload(null);
 			return ClientFS.FSReturnVals.Fail;
@@ -142,34 +141,32 @@ public class ClientRec {
 	 */
 	public FSReturnVals ReadNextRecord(FileHandle ofh, RID pivot, TinyRec rec){
 		if ((ofh == null) || ofh.noChunk()){ return ClientFS.FSReturnVals.BadHandle;}
-		RID answer;
-		if (pivot.inLinkedList){
-			answer = pivot.next;
-			if (answer == null){
-				rec.setRID(null);
-				rec.setPayload(null);
+		if (!pivot.inLinkedList){
+			pivot = seek(ofh,pivot);
+		}
+		RID answer = pivot.next;
+		if (answer == null){
+			//System.out.println("next chunk");
+			if (ofh.nextChunk()){
+				//System.out.println("Exists");
+				answer = ofh.getChunkFirstRID();
+			}else{
+				//System.out.println("Does not exist");
 				return ClientFS.FSReturnVals.RecDoesNotExist;
 			}
-		}else{
-			RID cur = ofh.getChunkFirstRID();
-			int iPivotChunk = Integer.parseInt(pivot.chunk);
-			while (cur !=null){
-				int iCurChunk = Integer.parseInt(cur.chunk);
-				if((iCurChunk>iPivotChunk) ||((iCurChunk==iPivotChunk) && (cur.offset>pivot.offset))){
-					break;
-				}
-				cur = cur.next;
-			}
-			if (cur == null){
-				rec.setRID(null);
-				rec.setPayload(null);
-				return ClientFS.FSReturnVals.RecDoesNotExist;
-			}
-			answer = cur;
 		}
 		return getRecord(ofh,answer,rec);
 	}
-
+	private RID seek(FileHandle ofh, RID pivot){
+		ofh.changeChunk(pivot.inChunk());
+		RID cur = ofh.getChunkFirstRID();
+		while (cur != null){
+			if (cur.toString().equals(pivot.toString())){
+				return cur;
+			}
+		}
+		return null;
+	}
 	/**
 	 * Reads the previous record after the specified pivot of the file specified
 	 * by ofh into payload Returns BadHandle if ofh is invalid Returns
@@ -180,31 +177,18 @@ public class ClientRec {
 	 */
 	public FSReturnVals ReadPrevRecord(FileHandle ofh, RID pivot, TinyRec rec){
 		if ((ofh == null) || ofh.noChunk()){ return ClientFS.FSReturnVals.BadHandle;}
-		RID answer;
-		if (pivot.inLinkedList){
-			answer = pivot.prior;
-			if (answer == null){
-				rec.setRID(null);
-				rec.setPayload(null);
+		if (!pivot.inLinkedList){
+			pivot = seek(ofh,pivot);
+		}
+		RID answer = pivot.prior;
+		if (answer == null){
+			if (ofh.previousChunk()){
+				answer = ofh.getChunkLastRID();
+			}else{
 				return ClientFS.FSReturnVals.RecDoesNotExist;
 			}
-		}else{
-			RID cur = ofh.getChunkLastRID();
-			int iPivotChunk = Integer.parseInt(pivot.chunk);
-			while (cur !=null){
-				int iCurChunk = Integer.parseInt(cur.chunk);
-				if((iCurChunk<iPivotChunk) ||((iCurChunk==iPivotChunk) && (cur.offset<pivot.offset))){
-					break;
-				}
-				cur = cur.prior;
-			}
-			if (cur == null){
-				rec.setRID(null);
-				rec.setPayload(null);
-				return ClientFS.FSReturnVals.RecDoesNotExist;
-			}
-			answer = cur;
 		}
 		return getRecord(ofh,answer,rec);
 	}
 }
+
