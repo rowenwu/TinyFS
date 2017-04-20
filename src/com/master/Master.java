@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -24,7 +25,7 @@ import java.util.Hashtable;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
-
+import com.client.ChunkServerPointer;
 import com.client.Client;
 import com.client.FileHandle;
 import com.client.ClientFS.FSReturnVals;
@@ -42,12 +43,10 @@ public class Master {
 	private ServerSocket clientCommChannel;
 	
 	//connections to chunkservers
-	public static ChunkserverConnectionThread[] connectionArray;
-	
-	public static void main(String[] args){	
-		connectionArray= new ChunkserverConnectionThread[52];
-		new Master();
-	}
+	public String[] connectionArray;
+	private String csLog = "chunkserversLog";
+	Vector<ChunkserverConnectionThread> livingChunkservers;
+	Hashtable<String, Character> ipToLetter;
 	
 	//Commands recognized by the Master
 	public static final int CreateDirCMD = 201;
@@ -62,11 +61,31 @@ public class Master {
 	public static final int GetNumChunkRecsCMD = 210;
 	public static final int GetChunkHandlesCMD = 211;
 	
+	public static void main(String[] args){
+		new Master();
+	}
+	
 	/*
 	 * Sets up map of files to chunks 
 	 * Starts listening for client and chunkserver connections 
 	 */
 	public Master(){
+		connectionArray = new String[52];
+		livingChunkservers = new Vector<ChunkserverConnectionThread>();
+		ipToLetter = new Hashtable<String, Character>();
+
+		if (!Files.exists(Paths.get(csLog))) {	
+			try {
+				File chunkservers = new File(csLog);
+				chunkservers.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} 
+		else {
+			readChunkserverInfo();
+		}
+
 		numChunkRecords = new Hashtable<String, Integer>();
 		if (!Files.exists(Paths.get(sourcePath)) || !Files.isDirectory(Paths.get(sourcePath))) {	
 			chunkNum = 0;
@@ -81,8 +100,6 @@ public class Master {
 			filesToChunks = mapFilesToChunks("");
 		}
 		fileLock =  new FileDirLock();
-
-		ServerSocket commChannel = null;
 		
 		// listen for incoming client connections
 		try {
@@ -97,6 +114,25 @@ public class Master {
 		new ChunkServerSocket().start();
 	}
 	
+	private void readChunkserverInfo() {
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(csLog));
+			String line;
+			while((line = br.readLine()) != null){
+				StringTokenizer st = new StringTokenizer(line);
+				String ip = st.nextToken();
+				int num = Integer.parseInt(st.nextToken());
+				connectionArray[num] = ip;
+				ipToLetter.put(ip, ChunkServerPointer.intToChar(num));
+			}
+			br.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+
 	//perpetually listens for chunkserver connections
 	class ChunkServerSocket extends Thread{
 		
@@ -110,8 +146,17 @@ public class Master {
 					System.out.println("Connected a chunkserver.");
 					//store ConnectionThread in non-null index of connectionArray
 					for(int i=0; i<52; i++){
-						if(connectionArray[i]!=null){
-							connectionArray[i]=ct;
+						if(connectionArray[i]==null){
+							String address = ct.socket.getRemoteSocketAddress().toString();
+							StringTokenizer st = new StringTokenizer(address, "/:");
+							String ip = st.nextToken();
+							System.out.println(ip);
+							connectionArray[i]= ip;
+							PrintWriter pw = new PrintWriter(new FileWriter(csLog));
+							pw.write(ip + " " + i);
+							pw.close();
+							livingChunkservers.add(ct);
+							ipToLetter.put(ip, ChunkServerPointer.intToChar(i));
 							break;
 						}
 					}
@@ -171,15 +216,15 @@ public class Master {
 				DataInputStream din = new DataInputStream(socket.getInputStream());
 				
 				//send available chunkservers to client
-				Vector<String> livingChunkservers = getLivingChunkservers();
-				String chunkserverString="";
+				refreshConnections();
+				dos.writeInt(livingChunkservers.size());
 				for(int i=0; i<livingChunkservers.size(); i++){
-					chunkserverString+=livingChunkservers.elementAt(i);
-					if(i!=livingChunkservers.size()-1){
-						chunkserverString+=" ";
-					}
+					String address = livingChunkservers.get(i).socket.getRemoteSocketAddress().toString();
+					StringTokenizer st = new StringTokenizer(address, "/:");
+					String ip = st.nextToken();
+					dos.writeUTF(ip);
 				}
-				dos.writeUTF(chunkserverString);
+				dos.flush();
 				
 				while(true){
 					dos.flush();
@@ -316,6 +361,11 @@ public class Master {
 				}
 			} catch (IOException e) {
 				System.out.println("Chunkserver connection closed");
+				for(int i=0; i<livingChunkservers.size(); i++){
+					if(livingChunkservers.get(i)==this){
+						livingChunkservers.remove(i);
+					}
+				} 
 			} finally {
 				try {
 					socket.close();
@@ -329,29 +379,13 @@ public class Master {
 	
 	//removes dead chunkservers from connectionArray
 	public void refreshConnections(){
-		for(int i=0; i<52; i++){
-			if(connectionArray[i]!=null){
-				//set dead chunkservers to null
-				if(!connectionArray[i].isAlive()){
-					connectionArray[i]=null;
-				}
+		for(int i=0; i<livingChunkservers.size(); i++){
+			if(livingChunkservers.get(i)==null){
+				livingChunkservers.remove(i);
 			}
 		}
 	}
 
-	//gets IP addresses of living chunkservers
-	public Vector<String> getLivingChunkservers(){
-		//removes dead chunkservers
-		refreshConnections();
-		Vector<String> livingChunkServers=new Vector<String>();
-		for(int i=0; i<52; i++){
-			if(connectionArray[i]!=null){
-				//get IP addresses of living chunkservers
-				livingChunkServers.add(connectionArray[i].socket.getRemoteSocketAddress().toString());
-			}
-		}
-		return livingChunkServers;
-	}
 	// recursively enter each directory and each file where chunkhandles are stored
 	private Hashtable<String, Vector<String>> mapFilesToChunks(String directory){
 		File Directory = new File("source" + directory);
@@ -536,9 +570,7 @@ public class Master {
 		    try {
 				if (file.createNewFile()){
 					String handle = createChunk(tgtdir + filename);
-					Vector<String> handles = new Vector<String>();
-					handles.add(handle);
-					filesToChunks.put(formatPath(tgtdir+filename), handles);
+					numChunkRecords.put(handle, 0);
 					fileLock.createLock(tgtdir + filename);
 				}
 			} catch (IOException e) {
@@ -688,12 +720,13 @@ public class Master {
 	// returns chunk handle
 	public String createChunk(String filePath){
 		String chunkHandle = "";
-		if(connectionArray!= null){
-			int num = chunkNum%connectionArray.length+65;
-			chunkHandle += (char) num;
+		if(livingChunkservers.size() != 0){
+			int num = chunkNum % livingChunkservers.size();
+			chunkHandle += ipToLetter.get(livingChunkservers.get(num).socket.getRemoteSocketAddress().toString());
 		} else
 			chunkHandle += "A";
 		chunkHandle += formatChunkNum();
+//		System.out.println(chunkHandle);
 		chunkNum++;
 		File f = new File("source" + filePath);
 	    long fileLength = f.length();

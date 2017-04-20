@@ -54,14 +54,13 @@ public class Client implements ClientInterface {
 			//68.181.174.43
 			
 			//get chunkserver host names from master and parse
-			String chunkserverNames = masterDin.readUTF();
-			String[] csHostNames = chunkserverNames.split(" ");
+			String[] csHostNames = new String[masterDin.readInt()];
 			//String[] csHostNames = {"128.125.221.230","68.181.174.43"};
 			
 			for (int i = 0; i < csHostNames.length; i++){
-				String curHostName = csHostNames[i];
+				csHostNames[i] = masterDin.readUTF();
 //				System.out.println("Booting "+curHostName);
-				ChunkServerPointer nextChunkServer = new ChunkServerPointer(curHostName,csPort);
+				ChunkServerPointer nextChunkServer = new ChunkServerPointer(csHostNames[i],csPort);
 				allChunkServers[i] = nextChunkServer;
 				if (nextChunkServer.isConnected){
 					if (clientCSConn == null){
