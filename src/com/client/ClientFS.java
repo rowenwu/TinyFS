@@ -186,7 +186,7 @@ public class ClientFS extends Client{
 				ofh.openFile(FilePath);
 			return FSReturnVals.values()[val];
 		} catch (IOException e) {
-			System.out.println("DeleteDir failed, IO Exception");
+			System.out.println("OpenFile failed, IO Exception");
 			e.printStackTrace();
 		}
 		return FSReturnVals.Fail;

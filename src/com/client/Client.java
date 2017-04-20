@@ -60,7 +60,7 @@ public class Client implements ClientInterface {
 			
 			for (int i = 0; i < csHostNames.length; i++){
 				String curHostName = csHostNames[i];
-				System.out.println("Booting "+curHostName);
+//				System.out.println("Booting "+curHostName);
 				ChunkServerPointer nextChunkServer = new ChunkServerPointer(curHostName,csPort);
 				allChunkServers[i] = nextChunkServer;
 				if (nextChunkServer.isConnected){
@@ -69,7 +69,7 @@ public class Client implements ClientInterface {
 					}
 				}				
 			}
-			System.out.println("Done booting");
+//			System.out.println("Done booting");
 			
 		} catch (IOException e) {
 			e.printStackTrace();

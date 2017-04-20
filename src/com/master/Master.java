@@ -246,10 +246,12 @@ public class Master {
 							dos.flush();
 							break;
 						case OpenFileCMD:
-							//TODO
+							dos.writeInt(OpenFile(din.readUTF()));
+							dos.flush();
 							break;
 						case CloseFileCMD:
-							//TODO
+							dos.writeInt(CloseFile(din.readUTF()));
+							dos.flush();
 							break;
 						case CreateChunkCMD:
 							dos.writeUTF(createChunk(din.readUTF()));
@@ -533,7 +535,10 @@ public class Master {
 
 		    try {
 				if (file.createNewFile()){
-					filesToChunks.put(tgtdir+filename, new Vector<String>());
+					String handle = createChunk(tgtdir + filename);
+					Vector<String> handles = new Vector<String>();
+					handles.add(handle);
+					filesToChunks.put(formatPath(tgtdir+filename), handles);
 					fileLock.createLock(tgtdir + filename);
 				}
 			} catch (IOException e) {
@@ -683,9 +688,11 @@ public class Master {
 	// returns chunk handle
 	public String createChunk(String filePath){
 		String chunkHandle = "";
-		if(chunkNum%3 == 0) chunkHandle += "A";
-		else if(chunkNum%3 == 1) chunkHandle += "B";
-		else chunkHandle = "C";
+		if(connectionArray!= null){
+			int num = chunkNum%connectionArray.length+65;
+			chunkHandle += (char) num;
+		} else
+			chunkHandle += "A";
 		chunkHandle += formatChunkNum();
 		chunkNum++;
 		File f = new File("source" + filePath);
@@ -703,7 +710,7 @@ public class Master {
 		//modify filesToChunks hashtable
 		Vector<String> chunks = getChunkHandles(filePath);
 		chunks.add(chunkHandle);
-		filesToChunks.put(filePath, chunks);
+		filesToChunks.put(formatPath(filePath), chunks);
 		numChunkRecords.put(chunkHandle, 0);
 		return chunkHandle;
 	}
@@ -730,10 +737,16 @@ public class Master {
 			if(!Files.isDirectory(Paths.get(sourcePath + children.get(a)))){
 				String name = children.get(a);
 				name.replace(src, newName);
-				filesToChunks.put(name, filesToChunks.get(src));
+				filesToChunks.put(formatPath(name), filesToChunks.get(src));
 				filesToChunks.remove(src);
 			}
 		}
+	}
+	
+	public String formatPath(String path){
+		if(path.endsWith("/"))
+			path = path.substring(0, path.length()-2);
+		return path;
 	}
 	
 	//CLEANUP SOURCE DIRECTORY BEFORE UNIT TESTS
