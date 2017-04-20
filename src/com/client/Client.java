@@ -197,7 +197,7 @@ public class Client implements ClientInterface {
 		return -1;
 	}
 
-	public int changeNumChunkRecorsd(String chunkHandle, int change){
+	public int changeNumChunkRecords(String chunkHandle, int change){
 		try {
 			masterDos.writeInt(Master.ChangeNumRecordsCMD);
 			masterDos.writeUTF(chunkHandle);
