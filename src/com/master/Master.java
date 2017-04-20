@@ -63,6 +63,7 @@ public class Master {
 	public static final int ChangeNumRecordsCMD = 212;
 	
 	public static void main(String[] args){
+		UnitTestCleanUp(new File("source"));
 		new Master();
 	}
 	
@@ -73,7 +74,7 @@ public class Master {
 	public Master(){
 		connectionArray = new String[52];
 		livingChunkservers = new Vector<ChunkserverConnectionThread>();
-		ipToLetter = new Hashtable<String, Character>();
+		ipToLetter = new Hashtable<String, Character>(52);
 
 		if (!Files.exists(Paths.get(csLog))) {	
 			try {
@@ -148,9 +149,7 @@ public class Master {
 					//store ConnectionThread in non-null index of connectionArray
 					for(int i=0; i<52; i++){
 						if(connectionArray[i]==null){
-							String address = ct.socket.getRemoteSocketAddress().toString();
-							StringTokenizer st = new StringTokenizer(address, "/:");
-							String ip = st.nextToken();
+							String ip = getIP(ct);
 //							System.out.println(ip);
 							connectionArray[i]= ip;
 							PrintWriter pw = new PrintWriter(new FileWriter(csLog));
@@ -220,9 +219,8 @@ public class Master {
 				refreshConnections();
 				dos.writeInt(livingChunkservers.size());
 				for(int i=0; i<livingChunkservers.size(); i++){
-					String address = livingChunkservers.get(i).socket.getRemoteSocketAddress().toString();
-					StringTokenizer st = new StringTokenizer(address, "/:");
-					String ip = st.nextToken();
+					String ip = getIP(livingChunkservers.get(i));
+					dos.writeChar(ipToLetter.get(ip));
 					dos.writeUTF(ip);
 				}
 				dos.flush();
@@ -737,7 +735,8 @@ public class Master {
 		String chunkHandle = "";
 		if(livingChunkservers.size() != 0){
 			int num = chunkNum % livingChunkservers.size();
-			chunkHandle += ipToLetter.get(livingChunkservers.get(num).socket.getRemoteSocketAddress().toString());
+			String ip = getIP(livingChunkservers.get(num));
+			chunkHandle += ipToLetter.get(ip);
 		} else
 			chunkHandle += "A";
 		chunkHandle += formatChunkNum();
@@ -797,14 +796,20 @@ public class Master {
 		return path;
 	}
 	
+	public String getIP(ChunkserverConnectionThread ct){
+		String address =ct.socket.getRemoteSocketAddress().toString();
+		StringTokenizer st = new StringTokenizer(address, "/:");
+		return st.nextToken();
+	}
+	
 	//CLEANUP SOURCE DIRECTORY BEFORE UNIT TESTS
-	public static boolean UnitTestCLeanUp(File directory) {
+	public static boolean UnitTestCleanUp(File directory) {
 	    if(directory.exists()){
 	        File[] files = directory.listFiles();
 	        if(null!=files){
 	            for(int i=0; i<files.length; i++) {
 	                if(files[i].isDirectory()) {
-	                	UnitTestCLeanUp(files[i]);
+	                	UnitTestCleanUp(files[i]);
 	                }
 	                else {
 	                    files[i].delete();

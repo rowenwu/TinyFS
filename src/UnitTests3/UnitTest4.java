@@ -23,7 +23,7 @@ public class UnitTest4 {
 	static final String TestName = "Unit Test 4: ";
 	
 	public static void main(String[] args) {
-		Master.UnitTestCLeanUp(new File("source/Shahram"));
+		Master.UnitTestCleanUp(new File("source/Shahram"));
 		String dir1 = "Shahram";
 		ClientFS cfs = new ClientFS();
 		FSReturnVals fsrv = cfs.CreateDir("/", dir1);

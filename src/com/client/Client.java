@@ -13,6 +13,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.Hashtable;
 import java.util.Vector;
 
 import com.chunkserver.ChunkServer;
@@ -30,7 +31,7 @@ public class Client implements ClientInterface {
 	static Socket clientCSConn;
 	protected static DataOutputStream csDos;
 	protected static DataInputStream csDin;
-	protected static ChunkServerPointer[] allChunkServers;
+	protected static Hashtable<Character, ChunkServerPointer> allChunkServers;
 	
 	//client master connections
 	static Socket clientMasterConn;
@@ -49,19 +50,21 @@ public class Client implements ClientInterface {
 			masterDos = new DataOutputStream(clientMasterConn.getOutputStream());
 			masterDin = new DataInputStream(clientMasterConn.getInputStream());
 			
-			allChunkServers = new ChunkServerPointer[52];
+			allChunkServers = new Hashtable<Character, ChunkServerPointer>(52);
 			//"localhost"
 			//68.181.174.43
 			
 			//get chunkserver host names from master and parse
-			String[] csHostNames = new String[masterDin.readInt()];
+//			String[] csHostNames = new String[masterDin.readInt()];
 			//String[] csHostNames = {"128.125.221.230","68.181.174.43"};
+			int numServers = masterDin.readInt();
 			
-			for (int i = 0; i < csHostNames.length; i++){
-				csHostNames[i] = masterDin.readUTF();
+			for (int i = 0; i < numServers; i++){
+				char letter = masterDin.readChar();
+				String ip = masterDin.readUTF();
 //				System.out.println("Booting "+curHostName);
-				ChunkServerPointer nextChunkServer = new ChunkServerPointer(csHostNames[i],csPort);
-				allChunkServers[i] = nextChunkServer;
+				ChunkServerPointer nextChunkServer = new ChunkServerPointer(ip,csPort);
+				allChunkServers.put(letter, nextChunkServer);
 				if (nextChunkServer.isConnected){
 					if (clientCSConn == null){
 						useCSPointer(nextChunkServer);
@@ -82,11 +85,6 @@ public class Client implements ClientInterface {
 			return true;
 		}
 		return false;
-	}
-	private boolean switchChunkServers(char id){
-		int csIndex = ChunkServerPointer.charToInt(id);
-		ChunkServerPointer useThis = allChunkServers[csIndex];
-		return useCSPointer(useThis);
 	}
 	
 	
@@ -112,23 +110,24 @@ public class Client implements ClientInterface {
 	 * read and return the boolean sent back
 	 */
 	public boolean writeChunk(String ChunkHandle, byte[] payload, int offset) {
-		switchChunkServers(ChunkHandle.charAt(0));
-		String chunkID = ChunkHandle.substring(1);
-		if(offset + payload.length > ChunkServer.ChunkSize) {
-			System.out.println("The chunk write should be within the range of the file, invalid chunk write!");
-			return false;
+		if(useCSPointer(allChunkServers.get(ChunkHandle.charAt(0)))){
+			String chunkID = ChunkHandle.substring(1);
+			if(offset + payload.length > ChunkServer.ChunkSize) {
+				System.out.println("The chunk write should be within the range of the file, invalid chunk write!");
+				return false;
+			}
+			try {
+				csDos.writeInt(ChunkServer.WriteChunkCMD);
+				csDos.writeUTF(chunkID);
+				csDos.writeInt(payload.length);
+				csDos.write(payload);
+				csDos.writeInt(offset);
+				csDos.flush();
+				return csDin.readBoolean();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} 
 		}
-		try {
-			csDos.writeInt(ChunkServer.WriteChunkCMD);
-			csDos.writeUTF(chunkID);
-			csDos.writeInt(payload.length);
-			csDos.write(payload);
-			csDos.writeInt(offset);
-			csDos.flush();
-			return csDin.readBoolean();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} 
 		return false;
 	}
 
@@ -137,26 +136,27 @@ public class Client implements ClientInterface {
 	 * read the response into a byte array
 	 */
 	public byte[] readChunk(String ChunkHandle, int offset, int NumberOfBytes) {
-		switchChunkServers(ChunkHandle.charAt(0));
-		String chunkID = ChunkHandle.substring(1);
-		if(NumberOfBytes + offset > ChunkServer.ChunkSize) {
-			System.out.println("The chunk read should be within the range of the file, invalid chunk read!");
-			return null;
+		if(useCSPointer(allChunkServers.get(ChunkHandle.charAt(0)))){
+			String chunkID = ChunkHandle.substring(1);
+			if(NumberOfBytes + offset > ChunkServer.ChunkSize) {
+				System.out.println("The chunk read should be within the range of the file, invalid chunk read!");
+				return null;
+			}
+			try {
+				csDos.writeInt(ChunkServer.ReadChunkCMD);
+				csDos.writeUTF(chunkID);
+				csDos.writeInt(offset); 
+				csDos.writeInt(NumberOfBytes); 
+				csDos.flush();
+	//			System.out.println("Sent read command: " + ChunkHandle + " " + offset + " " + NumberOfBytes); 
+				byte[] byteArr = new byte[NumberOfBytes];
+				csDin.readFully(byteArr);
+				return byteArr;
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
 		}
-		try {
-			csDos.writeInt(ChunkServer.ReadChunkCMD);
-			csDos.writeUTF(chunkID);
-			csDos.writeInt(offset); 
-			csDos.writeInt(NumberOfBytes); 
-			csDos.flush();
-//			System.out.println("Sent read command: " + ChunkHandle + " " + offset + " " + NumberOfBytes); 
-			byte[] byteArr = new byte[NumberOfBytes];
-			csDin.readFully(byteArr);
-			return byteArr;
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 
 		return null;
 	}
 	

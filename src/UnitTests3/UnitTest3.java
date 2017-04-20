@@ -17,7 +17,7 @@ public class UnitTest3 {
 	static final String TestName = "Unit Test 3: ";
 
 	public static void main(String[] args) {
-		Master.UnitTestCLeanUp(new File("source/ShahramGhandeharizadeh"));
+		Master.UnitTestCleanUp(new File("source/ShahramGhandeharizadeh"));
 		ClientFS cfs = new ClientFS();
 		UnitTest2 ut2 = new UnitTest2();
 		ut2.test2(cfs);
