@@ -58,8 +58,9 @@ public class Master {
 	public static final int OpenFileCMD = 207;
 	public static final int CloseFileCMD = 208;
 	public static final int CreateChunkCMD = 209;
-	public static final int GetNumChunkRecsCMD = 210;
-	public static final int GetChunkHandlesCMD = 211;
+	public static final int GetChunkHandlesCMD = 210;
+	public static final int GetNumChunkRecsCMD = 211;
+	public static final int ChangeNumRecordsCMD = 212;
 	
 	public static void main(String[] args){
 		new Master();
@@ -150,7 +151,7 @@ public class Master {
 							String address = ct.socket.getRemoteSocketAddress().toString();
 							StringTokenizer st = new StringTokenizer(address, "/:");
 							String ip = st.nextToken();
-							System.out.println(ip);
+//							System.out.println(ip);
 							connectionArray[i]= ip;
 							PrintWriter pw = new PrintWriter(new FileWriter(csLog));
 							pw.write(ip + " " + i);
@@ -302,15 +303,19 @@ public class Master {
 							dos.writeUTF(createChunk(din.readUTF()));
 							dos.flush();
 							break;
-						case GetNumChunkRecsCMD:
-							dos.writeInt(getNumChunkRecords(din.readUTF()));
-							dos.flush();
-							break;
 						case GetChunkHandlesCMD:
 							Vector<String> handles = getChunkHandles(din.readUTF());
 							dos.writeInt(handles.size());
 							for(int a = 0; a < handles.size(); a++)
 								dos.writeUTF(handles.get(a));
+							dos.flush();
+							break;
+						case GetNumChunkRecsCMD:
+							dos.writeInt(getNumChunkRecords(din.readUTF()));
+							dos.flush();
+							break;
+						case ChangeNumRecordsCMD:
+							dos.writeBoolean(changeNumChunkRecords(din.readUTF(), din.readInt()));
 							dos.flush();
 							break;
 						default:
@@ -714,6 +719,16 @@ public class Master {
 		if(numChunkRecords.get(chunkHandle) != null)
 			return numChunkRecords.get(chunkHandle);
 		return -1;
+	}
+	
+	// returns true if successfully changed number of chunk records 
+	// returns false if chunk doesn't exist
+	public boolean changeNumChunkRecords(String chunkHandle, int change){
+		if(numChunkRecords.get(chunkHandle) == null)
+			return false;
+		int numRecs = numChunkRecords.get(chunkHandle) + change;
+		numChunkRecords.put(chunkHandle, numRecs);
+		return true;
 	}
 	
 	// logs a chunk in the file with 0000 records

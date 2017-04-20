@@ -197,4 +197,17 @@ public class Client implements ClientInterface {
 		return -1;
 	}
 
+	public int changeNumChunkRecorsd(String chunkHandle, int change){
+		try {
+			masterDos.writeInt(Master.ChangeNumRecordsCMD);
+			masterDos.writeUTF(chunkHandle);
+			masterDos.writeInt(change);
+			masterDos.flush();
+			return masterDin.readInt();
+		} catch (IOException e) {
+			System.out.println("Error getting chunk handles from master, file : " + chunkHandle);
+			e.printStackTrace();
+		}
+		return -1;
+	}
 }
