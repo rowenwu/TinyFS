@@ -233,7 +233,7 @@ public class FileHandle {
 		chunkLastRID.next = r;
 		r.prior = chunkLastRID;
 		chunkLastRID = r;
-		
+		client.changeNumChunkRecords(currentChunkHandle,chunkNumRecords);
 	}
 	FSReturnVals deleteLinkedRecord(RID RecordID){
 		RID delPrior = RecordID.prior;
@@ -282,6 +282,8 @@ public class FileHandle {
 			if (delNext != null){
 				delNext.prior = RecordID;
 			}
+		}else if (result == ClientFS.FSReturnVals.Success){
+			client.changeNumChunkRecords(currentChunkHandle,chunkNumRecords);
 		}
 		return result;
 	}
