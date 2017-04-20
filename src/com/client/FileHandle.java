@@ -29,18 +29,19 @@ public class FileHandle {
 		filePath = path;
 		chunkIndex = 0;
 		fileChunks = new Vector<String>();
+		//System.out.println(fileChunks.size()+" chunks in file");
 		//System.out.println("Ready to read chunk handles from path "+path);
 		String[] chunkHandlesReturned = client.getChunkHandles(path);
+		if (chunkHandlesReturned == null){
+			return false;
+		}
 		//System.out.println(chunkHandlesReturned.length+" chunks were returned");
 		for (int i = 0; i < chunkHandlesReturned.length; i++){
 			//System.out.println("Has chunk "+chunkHandlesReturned[i]);
 			fileChunks.add(chunkHandlesReturned[i]);
 		}
 		//fileChunks.copyInto(chunkHandlesReturned);
-		//System.out.println(fileChunks.size()+" chunks in file");
-		if (fileChunks == null){
-			return false;
-		}
+		
 		return changeChunk(fileChunks.get(chunkIndex));
 	}
 	public boolean noChunk(){

@@ -572,8 +572,8 @@ public class Master {
 
 		    try {
 				if (file.createNewFile()){
-					String handle = createChunk(tgtdir + filename);
-					numChunkRecords.put(handle, 0);
+//					String handle = createChunk(tgtdir + filename);
+//					numChunkRecords.put(handle, 0);
 					fileLock.createLock(tgtdir + filename);
 				}
 			} catch (IOException e) {
