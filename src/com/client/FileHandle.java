@@ -126,10 +126,11 @@ public class FileHandle {
 		return ClientFS.FSReturnVals.Fail;
 	}
 	public String newChunk(){
-		String newChunk = client.createChunk();
+		String newChunk = client.createChunk(filePath);
 		if (newChunk == null){ return null;}
 		//We need to put in code that determines which ChunkServer and which one-letter prefix goes here
 		//Right now it is hard-coded to "A"
+		System.out.println("Client gave newChunk " + newChunk);
 		currentChunkHandle = newChunk;
 		lastChunkHandle = currentChunkHandle;
 		chunkBytesUsed = 0;

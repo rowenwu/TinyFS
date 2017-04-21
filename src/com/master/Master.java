@@ -743,7 +743,7 @@ public class Master {
 		} else
 			chunkHandle += "A";
 		chunkHandle += formatChunkNum();
-//		System.out.println(chunkHandle);
+		System.out.println("handle " + chunkHandle);
 		chunkNum++;
 		File f = new File("source" + filePath);
 	    long fileLength = f.length();

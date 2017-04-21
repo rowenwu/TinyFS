@@ -104,12 +104,28 @@ public class Client implements ClientInterface {
 		} 
 		return null;
 	}
+	
+	public String createChunk(String fileName) {
+		//NEEDS TO TALK TO MASTER TO GET THE NAME OF THE NEXT CHUNK HANDLE
+		try {
+			masterDos.writeInt(Master.CreateChunkCMD);
+			masterDos.writeUTF(fileName);
+			masterDos.flush();
+			String chunkHandle = masterDin.readUTF();
+			System.out.println("client handle " + chunkHandle);
+			return new String(chunkHandle);
+		} catch (IOException e) {
+			e.printStackTrace();
+		} 
+		return null;
+	}
 
 	/**
 	 * send the write command, chunk handle, payload size, and payload to the server 
 	 * read and return the boolean sent back
 	 */
 	public boolean writeChunk(String ChunkHandle, byte[] payload, int offset) {
+		System.out.println(ChunkHandle);
 		if(useCSPointer(allChunkServers.get(ChunkHandle.charAt(0)))){
 			String chunkID = ChunkHandle.substring(1);
 			if(offset + payload.length > ChunkServer.ChunkSize) {
