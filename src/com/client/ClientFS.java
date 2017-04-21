@@ -201,12 +201,12 @@ public class ClientFS extends Client{
 	 */
 	public FSReturnVals CloseFile(FileHandle ofh) {
 		try {
-			masterDos.writeInt(Master.OpenFileCMD);
+			masterDos.writeInt(Master.CloseFileCMD);
 			masterDos.writeUTF(ofh.getFilePath());
 			masterDos.flush();
 			return FSReturnVals.values()[masterDin.readInt()];
 		} catch (IOException e) {
-			System.out.println("DeleteDir failed, IO Exception");
+			System.out.println("CloseFile failed, IO Exception");
 			e.printStackTrace();
 		}
 		return FSReturnVals.Fail;

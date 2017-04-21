@@ -229,6 +229,7 @@ public class Master {
 					dos.flush();
 					while(true){
 						int CMD = din.readInt();
+						System.out.println(CMD);
 						switch (CMD){
 						case CreateDirCMD:
 							dos.writeInt(CreateDir(din.readUTF(), din.readUTF()));
@@ -294,6 +295,7 @@ public class Master {
 							dos.flush();
 							break;
 						case CloseFileCMD:
+							System.out.println("close file");
 							dos.writeInt(CloseFile(din.readUTF()));
 							dos.flush();
 							break;
@@ -669,6 +671,7 @@ public class Master {
 			return 6;
 		
 		try {
+			System.out.println(FilePath);
 			fileLock.releaseWriteLock(FilePath);
 			return 11;
 		} catch (InterruptedException e) {
