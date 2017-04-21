@@ -112,7 +112,7 @@ public class Client implements ClientInterface {
 			masterDos.writeUTF(fileName);
 			masterDos.flush();
 			String chunkHandle = masterDin.readUTF();
-			System.out.println("client handle " + chunkHandle);
+//			System.out.println("client handle " + chunkHandle);
 			return new String(chunkHandle);
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -125,7 +125,6 @@ public class Client implements ClientInterface {
 	 * read and return the boolean sent back
 	 */
 	public boolean writeChunk(String ChunkHandle, byte[] payload, int offset) {
-		System.out.println(ChunkHandle);
 		if(useCSPointer(allChunkServers.get(ChunkHandle.charAt(0)))){
 			String chunkID = ChunkHandle.substring(1);
 			if(offset + payload.length > ChunkServer.ChunkSize) {
@@ -213,17 +212,17 @@ public class Client implements ClientInterface {
 		return -1;
 	}
 
-	public int changeNumChunkRecords(String chunkHandle, int change){
+	public boolean changeNumChunkRecords(String chunkHandle, int change){
 		try {
 			masterDos.writeInt(Master.ChangeNumRecordsCMD);
 			masterDos.writeUTF(chunkHandle);
 			masterDos.writeInt(change);
 			masterDos.flush();
-			return masterDin.readInt();
+			return masterDin.readBoolean();
 		} catch (IOException e) {
 			System.out.println("Error getting chunk handles from master, file : " + chunkHandle);
 			e.printStackTrace();
 		}
-		return -1;
+		return false;
 	}
 }

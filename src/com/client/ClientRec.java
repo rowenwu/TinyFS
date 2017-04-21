@@ -25,16 +25,15 @@ public class ClientRec {
 		if (ofh == null){
 			return ClientFS.FSReturnVals.BadHandle;
 		}
-		if (ofh.noChunk()){
+		int payloadSize = payload.length;
+		//if (!ofh.noChunk()) System.out.println("Size "+payloadSize+"  Space:  "+ofh.freeBytesLastChunk());
+		
+		if (ofh.noChunk() || (ofh.freeBytesLastChunk() < payloadSize)){
+//			System.out.println("New CHunk TIme");
 			ofh.newChunk();
 		}
 		if ((RecordID.chunk != null) || (RecordID.valid)){
 			return ClientFS.FSReturnVals.BadRecID;
-		}
-		int payloadSize = payload.length;
-		if (ofh.freeBytesLastChunk() < payloadSize){
-			RecordID = null;
-			return ClientFS.FSReturnVals.RecordTooLong;
 		}
 		String chunkName = ofh.getLastChunkHandle();		
 		RecordID.offset = ofh.getBytesUsedLastChunk();;
@@ -42,10 +41,10 @@ public class ClientRec {
 		RecordID.chunk = chunkName.substring(1);
 		RecordID.valid = true;
 		RecordID.length = payloadSize;
-		System.out.println("Attempt new record chunk "+chunkName);
+		//System.out.println("Attempt new record chunk "+chunkName);
 		boolean writeSuccessful = client.writeChunk(RecordID.inChunk(), payload,RecordID.offset);
 		if (writeSuccessful){
-			System.out.println("Write");
+			//System.out.println("Write");
 			//System.out.println(RecordID);
 			byte[] recordTagData = RecordID.makeTag();
 			//RID.printTag(recordTagData);
@@ -53,11 +52,16 @@ public class ClientRec {
 			//System.out.println("Should start writing byte "+tagOffset);
 			boolean tagSuccessful = client.writeChunk(RecordID.inChunk(), recordTagData,tagOffset);
 			if (tagSuccessful){		
-				System.out.println("tag");
+				//System.out.println("tag");
 				ofh.addRecord(RecordID);
 				return ClientFS.FSReturnVals.Success;
 			}
+			else{
+				System.out.println("Write but no tag");
+			}
 		}
+		else
+			System.out.println("failed write");
 		return ClientFS.FSReturnVals.Fail;
 	}
 	/**
@@ -105,6 +109,7 @@ public class ClientRec {
 	public FSReturnVals ReadFirstRecord(FileHandle ofh, TinyRec rec){
 		if ((ofh == null) || ofh.noChunk()){ return ClientFS.FSReturnVals.BadHandle;}
 		RID first = ofh.getFileFirstRID();
+		//System.out.println("First chunk "+ofh.getCurrentChunkHandle());
 		if (first == null){
 			return ClientFS.FSReturnVals.RecDoesNotExist;
 		}
@@ -154,6 +159,7 @@ public class ClientRec {
 		if (answer == null){
 			//System.out.println("next chunk");
 			if (ofh.nextChunk()){
+				//System.out.println("Next chunk "+ofh.getCurrentChunkHandle());
 				//System.out.println("Exists");
 				answer = ofh.getChunkFirstRID();
 			}else{

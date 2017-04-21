@@ -17,6 +17,7 @@ public class FileHandle {
 	private RID chunkFirstRID;
 	private RID chunkLastRID;
 	private boolean pointsToLast;
+	public static int added = 0;
 	Client client;
 	public FileHandle(){
 		client = new Client();
@@ -77,6 +78,7 @@ public class FileHandle {
 		int mdOffset = chunkSize - byteCount;
 		chunkBytesUsed = 0;
 		//XXX
+//		System.out.println("Reading metadata for "+chunkNumRecords+" starting at byte "+mdOffset);
 		byte[] metadata = client.readChunk(currentChunkHandle, mdOffset, byteCount);
 		if (metadata == null){
 			return false;
@@ -118,7 +120,7 @@ public class FileHandle {
 			System.out.println("\t"+RID.bytesToInt(idTags,i*4));
 		}
 		**/
-		boolean writeSuccess = client.writeChunk(currentChunkHandle.substring(1), idTags, tagOffset);
+		boolean writeSuccess = client.writeChunk(currentChunkHandle, idTags, tagOffset);
 		if (writeSuccess){
 			return ClientFS.FSReturnVals.Success;
 		}
@@ -130,7 +132,7 @@ public class FileHandle {
 		if (newChunk == null){ return null;}
 		//We need to put in code that determines which ChunkServer and which one-letter prefix goes here
 		//Right now it is hard-coded to "A"
-		System.out.println("Client gave newChunk " + newChunk);
+		//System.out.println("Make "+newChunk);
 		currentChunkHandle = newChunk;
 		lastChunkHandle = currentChunkHandle;
 		chunkBytesUsed = 0;
@@ -139,7 +141,7 @@ public class FileHandle {
 		chunkLastRID = null;
 		pointsToLast = true;
 		fileChunks.add(currentChunkHandle);
-		System.out.println("We have "+fileChunks.size()+" chunks");
+//		System.out.println("We have "+fileChunks.size()+" chunks");
 		return currentChunkHandle;
 	}
 	public int getRecordSize(RID r){
@@ -160,7 +162,7 @@ public class FileHandle {
 		return freeBytesCurrentChunk();
 	}
 	public int freeBytesCurrentChunk(){
-		return chunkSize - chunkBytesUsed + bytesPerIDTag * chunkNumRecords;
+		return chunkSize - chunkBytesUsed - bytesPerIDTag * chunkNumRecords;
 	}
 	public boolean changeChunk(String c){
 		if (c!= null){
@@ -224,18 +226,19 @@ public class FileHandle {
 		if (chunkFirstRID == null){
 			chunkFirstRID = r;
 			chunkLastRID = r;
-			return;
 		}
-		if (chunkLastRID == chunkFirstRID){
+		else if (chunkLastRID == chunkFirstRID){
 			r.prior = chunkFirstRID;
 			chunkFirstRID.next = r;
 			chunkLastRID = r;
-			return;
+		}else{
+			chunkLastRID.next = r;
+			r.prior = chunkLastRID;
+			chunkLastRID = r;
 		}
-		chunkLastRID.next = r;
-		r.prior = chunkLastRID;
-		chunkLastRID = r;
-		client.changeNumChunkRecords(currentChunkHandle,chunkNumRecords);
+//		System.out.println(currentChunkHandle + " " + chunkNumRecords);
+		client.changeNumChunkRecords(currentChunkHandle,1);
+		added++;
 	}
 	FSReturnVals deleteLinkedRecord(RID RecordID){
 		RID delPrior = RecordID.prior;
@@ -285,7 +288,7 @@ public class FileHandle {
 				delNext.prior = RecordID;
 			}
 		}else if (result == ClientFS.FSReturnVals.Success){
-			client.changeNumChunkRecords(currentChunkHandle,chunkNumRecords);
+			client.changeNumChunkRecords(currentChunkHandle,-1);
 		}
 		return result;
 	}
@@ -301,6 +304,7 @@ public class FileHandle {
 	public boolean loadNumberOfRecordsInChunk(){
 		try{
 			chunkNumRecords = client.getNumChunkRecords(currentChunkHandle);
+//			System.out.println("number of chunks from master" +chunkNumRecords);
 			return true;
 		}catch(Exception e){
 			return false;

@@ -229,7 +229,7 @@ public class Master {
 					dos.flush();
 					while(true){
 						int CMD = din.readInt();
-						System.out.println(CMD);
+//						System.out.println(CMD);
 						switch (CMD){
 						case CreateDirCMD:
 							dos.writeInt(CreateDir(din.readUTF(), din.readUTF()));
@@ -295,7 +295,6 @@ public class Master {
 							dos.flush();
 							break;
 						case CloseFileCMD:
-							System.out.println("close file");
 							dos.writeInt(CloseFile(din.readUTF()));
 							dos.flush();
 							break;
@@ -743,7 +742,6 @@ public class Master {
 		} else
 			chunkHandle += "A";
 		chunkHandle += formatChunkNum();
-		System.out.println("handle " + chunkHandle);
 		chunkNum++;
 		File f = new File("source" + filePath);
 	    long fileLength = f.length();
