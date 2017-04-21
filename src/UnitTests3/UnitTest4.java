@@ -60,9 +60,11 @@ public class UnitTest4 {
 		ofd = cfs.OpenFile("/" + dir1 + "/emp", fh);
 		TinyRec r1 = new TinyRec();
 		FSReturnVals retRR = crec.ReadFirstRecord(fh, r1);
+		
 		int cntr = 1;
 		ArrayList<RID> vect = new ArrayList<RID>();
 		while (r1.getRID() != null){
+			System.out.println("non null");
 			TinyRec r2 = new TinyRec();
 			FSReturnVals retval = crec.ReadNextRecord(fh, r1.getRID(), r2);
 			//if(retval != FSReturnVals.Success){
@@ -95,6 +97,7 @@ public class UnitTest4 {
 		}
 		
 		fsrv = cfs.CloseFile(fh);
+		System.out.println(cntr);
 		if(cntr != NumRecs){
 			System.out.println("Unit test 4 result: fail!");
     		return;
