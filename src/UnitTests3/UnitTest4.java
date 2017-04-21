@@ -52,7 +52,8 @@ public class UnitTest4 {
 				payload[j] = 'a';
 			}
 			RID rid = new RID();
-			crec.AppendRecord(fh, payload, rid);
+			System.out.println(crec.AppendRecord(fh, payload, rid));
+			System.out.println("Adding "+rid);
 		}
 		fsrv = cfs.CloseFile(fh);
 		
@@ -94,6 +95,7 @@ public class UnitTest4 {
 			}
 		}
 		
+		//ERROR
 		fsrv = cfs.CloseFile(fh);
 		if(cntr != NumRecs){
 			System.out.println("Unit test 4 result: fail!");
