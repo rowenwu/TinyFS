@@ -436,7 +436,7 @@ public class Master {
 	 */
 	public int CreateDir(String src, String dirname) throws IOException {
 		if(!DirExists(sourcePath + src)) return 2;
-		if(DirExists(sourcePath + src + dirname)) return 0;
+		if(DirExists(sourcePath + src + dirname)) return 11;
 	
 		try {
 			fileLock.acquireWriteLock(src);
