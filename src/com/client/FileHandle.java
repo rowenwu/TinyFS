@@ -125,12 +125,12 @@ public class FileHandle {
 		System.out.println("Write ID tags failed");
 		return ClientFS.FSReturnVals.Fail;
 	}
-	public String newChunk(char csId){
+	public String newChunk(){
 		String newChunk = client.createChunk();
 		if (newChunk == null){ return null;}
 		//We need to put in code that determines which ChunkServer and which one-letter prefix goes here
 		//Right now it is hard-coded to "A"
-		currentChunkHandle = csId+newChunk;
+		currentChunkHandle = newChunk;
 		lastChunkHandle = currentChunkHandle;
 		chunkBytesUsed = 0;
 		chunkNumRecords = 0;
