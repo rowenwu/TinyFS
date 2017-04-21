@@ -194,6 +194,7 @@ public class FileHandle {
 	}
 	public boolean loadLastChunk(){
 		String lastHandle = getLastChunkHandle();
+		chunkIndex = fileChunks.size() - 1; 
 		if (!lastHandle.equals(currentChunkHandle)){
 			changeChunk(lastHandle);
 		}
@@ -247,7 +248,7 @@ public class FileHandle {
 		boolean isLast = false;
 		if (RecordID.prior == null){
 			isFirst = true;
-			System.out.println("Is first");
+			//System.out.println("Is first");
 			if (RecordID.next == null){
 				blankLinkedList();
 				isLast = true;
@@ -323,6 +324,7 @@ public class FileHandle {
 	//Identifies and loads record information on the previous chunk in the file
 	//True if there is another chunk, false if there is not
 	public boolean previousChunk(){
+		//System.out.println("Call to prior "+chunkIndex);
 		if (chunkIndex - 1 >= 0){
 			chunkIndex--;
 			changeChunk(fileChunks.get(chunkIndex));
