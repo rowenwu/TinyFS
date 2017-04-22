@@ -32,7 +32,8 @@ import com.interfaces.ChunkServerInterface;
 public class ChunkServer implements ChunkServerInterface {
 	//master connection variables
 	static Socket csMasterConn;
-	private static String masterHostName = "localhost";
+//	private static String masterHostName = "localhost";
+	private static String masterHostName = "68.181.174.75";
 	protected static DataInputStream masterDin;
 	protected static DataOutputStream masterDos;
 	private int masterPort = 9998;
