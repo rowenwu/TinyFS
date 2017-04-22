@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 
 import com.client.ClientFS;
 import com.client.ClientFS.FSReturnVals;
+import com.master.Master;
 import com.client.ClientRec;
 import com.client.FileHandle;
 import com.client.RID;
@@ -22,6 +23,8 @@ public class UnitTest6 {
 	static final String TestName = "Unit Test 6: ";
 
 	public static void main(String[] args) throws Exception {
+		Master.UnitTestCleanUp(new File("source/Shahram"));
+
 		String SuperHeros[] = {"Superman", "Batman", "Wonderwoman", "ElastiGirl", "Supergirl", "Aquagirl", "DreamGirl", "DynaGirl", "SpiderMan", "AntMan", "Thor", "HalJordan", "CaptainAmerica",
 				"MartianManhunter", "DickGrayson", "Thing", "HumanTorch", "MrFantastic", "InvisibleWoman", "Superboy"};
 		String dir1 = "Shahram";

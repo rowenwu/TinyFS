@@ -1,10 +1,12 @@
 package UnitTests3;
 
+import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 import com.client.ClientFS;
 import com.client.ClientFS.FSReturnVals;
+import com.master.Master;
 import com.client.ClientRec;
 import com.client.FileHandle;
 import com.client.RID;
@@ -21,7 +23,8 @@ public class UnitTest5 {
 	static final String TestName = "Unit Test 5: ";
 	
 	public static void main(String[] args) {
-		
+		Master.UnitTestCleanUp(new File("source/Shahram"));
+
 		System.out.println(TestName + "Same as Unit Test 4 except that it manipulates the records starting with the last record, going backwards, and delete the even numbered records using their first four bytes.");
 		String dir1 = "Shahram";
 		ClientFS cfs = new ClientFS();
