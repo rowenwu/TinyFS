@@ -24,8 +24,8 @@ public class UnitTest1 {
 	}
 	
 	public static void test1(ClientFS cfs){
-		Master.UnitTestCleanUp(new File("source/Shahram"));
-		Master.UnitTestCleanUp(new File("source/Ghandeharizadeh"));
+//		Master.UnitTestCleanUp(new File("source/Shahram"));
+//		Master.UnitTestCleanUp(new File("source/Ghandeharizadeh"));
 		
 		System.out.println(TestName + "Create dir /Shahram, /Shahram/1, /Shahram/2, /Shahram/3, ... /Shahram/N and verify them.");
 		String dir1 = "Shahram";

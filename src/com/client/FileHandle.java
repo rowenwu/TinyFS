@@ -17,7 +17,7 @@ public class FileHandle {
 	private RID chunkFirstRID;
 	private RID chunkLastRID;
 	private boolean pointsToLast;
-	public static int added = 0;
+//	public static int added = 0;
 	Client client;
 	public FileHandle(){
 		client = new Client();
@@ -239,7 +239,7 @@ public class FileHandle {
 		}
 //		System.out.println(currentChunkHandle + " " + chunkNumRecords);
 		client.changeNumChunkRecords(currentChunkHandle,1);
-		added++;
+//		added++;
 	}
 	FSReturnVals deleteLinkedRecord(RID RecordID){
 		RID delPrior = RecordID.prior;

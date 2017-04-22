@@ -44,7 +44,7 @@ public class UnitTest4 {
 		ClientRec crec = new ClientRec();
 		
 		System.out.println(TestName + "Construct a record with the first four bytes equal to i, followed with 5 char attributes each with length 20.");
-		int a = 0;
+//		int a = 0;
 		for (int i = 0; i < NumRecs; i++){
 			payload = new byte[104];
 			byte[] ValInBytes = ByteBuffer.allocate(intSize).putInt(i).array();
@@ -57,9 +57,9 @@ public class UnitTest4 {
 				System.out.println("Something went wrong at "+i);
 			};
 //			System.out.println("Adding "+rid);
-			a++;
+//			a++;
 		}
-		System.out.println("added " + FileHandle.added);
+//		System.out.println("added " + FileHandle.added);
 		fsrv = cfs.CloseFile(fh);
 		
 		System.out.println(TestName + "Scan all records in a file");

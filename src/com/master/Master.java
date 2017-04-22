@@ -186,6 +186,10 @@ public class Master {
 				System.out.println("listening for clients...");
 				while (true) {
 					ClientConnectionThread ct = new ClientConnectionThread(clientCommChannel.accept());
+					Master.UnitTestCleanUp(new File("source/shahram"));
+					Master.UnitTestCleanUp(new File("source/Ghandeharizadeh"));
+					Master.UnitTestCleanUp(new File("source/ShahramGhandeharizadeh"));
+//					System.out.println("cleaned up");
 					ct.start();
 					System.out.println("Connected a client.");
 				}

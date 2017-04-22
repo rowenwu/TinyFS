@@ -36,8 +36,8 @@ public class Client implements ClientInterface {
 	//client master connections
 	static Socket clientMasterConn;
 	private int masterPort = 9999;
-//	private static String masterHostName = "localhost";
-	private static String masterHostName = "68.181.174.75";
+	private static String masterHostName = "localhost";
+//	private static String masterHostName = "68.181.174.75";
 	protected static DataInputStream masterDin;
 	protected static DataOutputStream masterDos;
 	
